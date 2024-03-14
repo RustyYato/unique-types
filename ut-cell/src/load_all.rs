@@ -39,16 +39,16 @@ macro_rules! load_all {
 
 pub trait Seal {}
 
+/// # Safety
+///
+/// assert_owned_by must check that all values in the list are owned by the given owner
+/// assert_all_elements_unique must check that all values in the list do no overlap
 pub unsafe trait CellList: Seal {
     type Owner: CellOwner + ?Sized;
-
-    fn is_owned_by(&self, owner: &Self::Owner) -> bool;
 
     fn assert_owned_by(&self, owner: &Self::Owner);
 
     fn contains(&self, ptr: *mut ()) -> bool;
-
-    fn all_elements_unique(&self) -> bool;
 
     fn assert_all_elements_unique(&self);
 }
@@ -66,10 +66,6 @@ impl<T, Ts: Seal> Seal for Cons<T, Ts> {}
 unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T, C>, Nil> {
     type Owner = C;
 
-    fn is_owned_by(&self, owner: &Self::Owner) -> bool {
-        self.value.is_owned_by(owner)
-    }
-
     fn assert_owned_by(&self, owner: &Self::Owner) {
         self.value.assert_owned_by(owner);
     }
@@ -79,19 +75,11 @@ unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T
         !self.is_head_zst_value() && ptr == self.value.as_ptr().cast()
     }
 
-    fn all_elements_unique(&self) -> bool {
-        true
-    }
-
     fn assert_all_elements_unique(&self) {}
 }
 
 unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Owner>, Ts> {
     type Owner = Ts::Owner;
-
-    fn is_owned_by(&self, owner: &Self::Owner) -> bool {
-        self.value.is_owned_by(owner) && self.rest.is_owned_by(owner)
-    }
 
     fn assert_owned_by(&self, owner: &Self::Owner) {
         self.value.assert_owned_by(owner);
@@ -101,10 +89,6 @@ unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Own
     fn contains(&self, ptr: *mut ()) -> bool {
         // ZSTs don't overlap
         !self.is_head_zst_value() && ptr == self.value.as_ptr().cast() || self.rest.contains(ptr)
-    }
-
-    fn all_elements_unique(&self) -> bool {
-        !self.is_head_in_tail() && self.rest.all_elements_unique()
     }
 
     fn assert_all_elements_unique(&self) {
