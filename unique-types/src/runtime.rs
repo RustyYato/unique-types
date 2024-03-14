@@ -57,16 +57,25 @@ impl RuntimeUt {
     pub fn new() -> Self {
         Self::with_counter()
     }
+
+    /// Try to create a new [`RuntimeUt`] based on the [`GlobalCounter`]
+    pub fn try_new() -> Option<Self> {
+        Self::try_with_counter()
+    }
 }
 
 impl<C: CounterRef> RuntimeUt<C> {
     /// Create a new [`RuntimeUt`] based on the given counter
     pub fn with_counter() -> Self {
-        Self {
+        Self::try_with_counter().expect("Tried to create a new RuntimeUt from an exhausted counter")
+    }
+
+    /// Create a new [`RuntimeUt`] based on the given counter
+    pub fn try_with_counter() -> Option<Self> {
+        Some(Self {
             _ty_traits: PhantomData,
-            value: C::with(Counter::next_value)
-                .expect("Tried to create a new RuntimeUt from an exhausted counter"),
-        }
+            value: C::with(Counter::next_value)?,
+        })
     }
 }
 

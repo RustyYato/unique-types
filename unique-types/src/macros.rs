@@ -3,6 +3,15 @@
 macro_rules! custom_counter {
     (
         $(#[$meta:meta])*
+        $v:vis struct $name:ident;
+    ) => {
+        $crate::custom_counter! {
+            $($meta)*
+            $v struct $name(());
+        }
+    };
+    (
+        $(#[$meta:meta])*
         $v:vis struct $name:ident($value:ty);
     ) => {
         $(#[$meta])*
@@ -26,6 +35,15 @@ macro_rules! custom_counter {
 #[macro_export]
 #[cfg(feature = "std")]
 macro_rules! thread_local_custom_counter {
+    (
+        $(#[$meta:meta])*
+        $v:vis struct $name:ident;
+    ) => {
+        $crate::thread_local_custom_counter! {
+            $($meta)*
+            $v struct $name(());
+        }
+    };
     (
         $(#[$meta:meta])*
         $v:vis struct $name:ident($value:ty);
