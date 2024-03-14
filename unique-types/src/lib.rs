@@ -12,6 +12,7 @@
 
 pub mod lifetime;
 pub mod unchecked;
+pub mod unique_indices;
 
 /// A type where all values of the type are distinct from each other.
 ///
