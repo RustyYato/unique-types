@@ -1,6 +1,6 @@
 //! Represents a [`UniqueType`] which tries to aquire a unique value at runtime
 
-use core::hash::Hash;
+use core::{hash::Hash, marker::PhantomData};
 
 use crate::{
     unique_indices::{Counter, CounterRef, GlobalCounter},
@@ -10,10 +10,14 @@ use crate::{
 /// A [`UniqueType`] which checks at runtime if it is unique
 pub struct RuntimeUt<C: CounterRef = GlobalCounter> {
     value: C::Value,
+    _ty_traits: PhantomData<C::TypeTraits>,
 }
 
 /// The token for [`RuntimeUt`]
-pub struct RuntimeUtToken<C: CounterRef>(C::Value);
+pub struct RuntimeUtToken<C: CounterRef> {
+    value: C::Value,
+    _ty_traits: PhantomData<C::TypeTraits>,
+}
 
 impl<C: CounterRef> Copy for RuntimeUtToken<C> {}
 impl<C: CounterRef> Clone for RuntimeUtToken<C> {
@@ -25,7 +29,7 @@ impl<C: CounterRef> Clone for RuntimeUtToken<C> {
 impl<C: CounterRef> Eq for RuntimeUtToken<C> {}
 impl<C: CounterRef> PartialEq for RuntimeUtToken<C> {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
+        self.value == other.value
     }
 }
 
@@ -37,13 +41,13 @@ impl<C: CounterRef> PartialOrd for RuntimeUtToken<C> {
 
 impl<C: CounterRef> Ord for RuntimeUtToken<C> {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.0.cmp(&other.0)
+        self.value.cmp(&other.value)
     }
 }
 
 impl<C: CounterRef> Hash for RuntimeUtToken<C> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
+        self.value.hash(state);
     }
 }
 
@@ -59,6 +63,7 @@ impl<C: CounterRef> RuntimeUt<C> {
     /// Create a new [`RuntimeUt`] based on the given counter
     pub fn with_counter() -> Self {
         Self {
+            _ty_traits: PhantomData,
             value: C::with(Counter::next_value)
                 .expect("Tried to create a new RuntimeUt from an exhausted counter"),
         }
@@ -70,11 +75,14 @@ unsafe impl<C: CounterRef> UniqueType for RuntimeUt<C> {
     type Token = RuntimeUtToken<C>;
 
     fn token(&self) -> Self::Token {
-        RuntimeUtToken(self.value)
+        RuntimeUtToken {
+            _ty_traits: self._ty_traits,
+            value: self.value,
+        }
     }
 
     fn owns(&self, token: &Self::Token) -> bool {
-        self.value == token.0
+        self.value == token.value
     }
 }
 

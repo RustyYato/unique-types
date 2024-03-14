@@ -19,6 +19,9 @@ pub unsafe trait CounterRef {
     type Counter: Counter<Value = Self::Value>;
     /// The counter value the counter produces
     type Value: Copy + Ord + Hash;
+    /// A type which implements all the traits needed to ensure that the
+    /// value isn't exposed to threads if it shouldn't be
+    type TypeTraits: Copy + Ord + Hash;
 
     /// Access the counter reference
     fn with<T>(f: impl FnOnce(&Self::Counter) -> T) -> T;
@@ -40,9 +43,6 @@ custom_counter! {
 pub unsafe trait Counter {
     /// The value yielded by [`Counter::next_value`]
     type Value: Copy + Ord + Hash;
-    /// A type which implements all the traits needed to ensure that the
-    /// value isn't exposed to threads if it shouldn't be
-    type TypeTraits;
 
     /// Create a new counter
     const NEW: Self;
@@ -65,7 +65,6 @@ pub struct CellCounter<T>(Cell<T>);
 // SAFETY: next_value only returns Some once
 unsafe impl Counter for CellCounter<bool> {
     type Value = ();
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(true));
 
@@ -81,7 +80,6 @@ unsafe impl Counter for CellCounter<bool> {
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for CellCounter<u8> {
     type Value = NonZeroU8;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(0));
 
@@ -95,7 +93,6 @@ unsafe impl Counter for CellCounter<u8> {
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for CellCounter<u16> {
     type Value = NonZeroU16;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(0));
 
@@ -109,7 +106,6 @@ unsafe impl Counter for CellCounter<u16> {
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for CellCounter<u32> {
     type Value = NonZeroU32;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(0));
 
@@ -123,7 +119,6 @@ unsafe impl Counter for CellCounter<u32> {
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for CellCounter<u64> {
     type Value = NonZeroU64;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(0));
 
@@ -137,7 +132,6 @@ unsafe impl Counter for CellCounter<u64> {
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for CellCounter<u128> {
     type Value = NonZeroU128;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(Cell::new(0));
 
@@ -154,7 +148,6 @@ pub struct AtomicCounterBool(AtomicBool);
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for AtomicCounterBool {
     type Value = ();
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(AtomicBool::new(false));
 
@@ -177,7 +170,6 @@ pub struct AtomicCounterU8(AtomicU8);
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for AtomicCounterU8 {
     type Value = NonZeroU8;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(AtomicU8::new(0));
 
@@ -200,7 +192,6 @@ pub struct AtomicCounterU16(AtomicU16);
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for AtomicCounterU16 {
     type Value = NonZeroU16;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(AtomicU16::new(0));
 
@@ -223,7 +214,6 @@ pub struct AtomicCounterU32(AtomicU32);
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for AtomicCounterU32 {
     type Value = NonZeroU32;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(AtomicU32::new(0));
 
@@ -246,7 +236,6 @@ pub struct AtomicCounterU64(AtomicU64);
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
 unsafe impl Counter for AtomicCounterU64 {
     type Value = NonZeroU64;
-    type TypeTraits = *mut ();
 
     const NEW: Self = Self(AtomicU64::new(0));
 

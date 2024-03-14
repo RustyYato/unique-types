@@ -3,12 +3,23 @@
     clippy::missing_safety_doc,
     clippy::undocumented_unsafe_blocks,
     unsafe_op_in_unsafe_fn,
-    missing_docs
+    missing_docs,
+    clippy::std_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::alloc_instead_of_core
 )]
 
 //! # unique-types
 //!
 //! A crate to create and manage types who's values are all unique
+
+#[doc(hidden)]
+#[cfg(feature = "std")]
+pub extern crate std;
+
+#[doc(hidden)]
+#[cfg(feature = "alloc")]
+pub extern crate alloc;
 
 #[macro_use]
 mod macros;
