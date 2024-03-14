@@ -23,7 +23,7 @@ fn main() {
     let b = UtCell::from_slice_of_cells(b);
 
     // the two slices overlap, so you can't get mutable access to both of them
-    assert!(ty.try_get_mut2(a, b).is_none());
+    assert!(ty.try_get_mut2(a, b).is_err());
 
     // this will panic because a and b overlap
     ty.get_mut2(a, b);

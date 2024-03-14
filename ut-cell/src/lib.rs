@@ -18,6 +18,26 @@ use core::{cell::UnsafeCell, mem};
 use unique_types::{TrivialToken, UniqueType};
 
 #[doc(hidden)]
+pub use core::result::Result;
+
+/// The error type of try_load_all
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub enum TryLoadAllError {
+    /// The nth argument wasn't owned by the provided owner
+    NotOwned {
+        /// the argument
+        arg: usize,
+    },
+    /// Two arguments overlapped
+    Overlaps {
+        /// the first argument
+        a: usize,
+        /// the second argument
+        b: usize,
+    },
+}
+
+#[doc(hidden)]
 pub mod load_all;
 
 impl<T: ?Sized + UniqueType> CellOwner for T {}
@@ -28,6 +48,7 @@ pub trait CellOwner: UniqueType {
     /// # Panics
     ///
     /// * If the cell isn't owned by self
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get<'a, T: ?Sized>(&'a self, cell: &'a UtCell<T, Self>) -> &'a T {
         cell.load(self)
     }
@@ -37,6 +58,7 @@ pub trait CellOwner: UniqueType {
     /// # Panics
     ///
     /// * If the cell isn't owned by self
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get_mut<'a, T: ?Sized>(&'a mut self, cell: &'a UtCell<T, Self>) -> &'a mut T {
         cell.load_mut(self)
     }
@@ -47,6 +69,7 @@ pub trait CellOwner: UniqueType {
     ///
     /// * If any cell isn't owned by self
     /// * If any cell overlaps with any other cell
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get_mut2<'a, T: ?Sized, U: ?Sized>(
         &'a mut self,
         a: &'a UtCell<T, Self>,
@@ -61,6 +84,7 @@ pub trait CellOwner: UniqueType {
     ///
     /// * If any cell isn't owned by self
     /// * If any cell overlaps with any other cell
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get_mut3<'a, T: ?Sized, U: ?Sized, V: ?Sized>(
         &'a mut self,
         a: &'a UtCell<T, Self>,
@@ -76,6 +100,7 @@ pub trait CellOwner: UniqueType {
     ///
     /// * If any cell isn't owned by self
     /// * If any cell overlaps with any other cell
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get_mut4<'a, T: ?Sized, U: ?Sized, V: ?Sized, X: ?Sized>(
         &'a mut self,
         a: &'a UtCell<T, Self>,
@@ -91,7 +116,7 @@ pub trait CellOwner: UniqueType {
         &'a mut self,
         a: &'a UtCell<T, Self>,
         b: &'a UtCell<U, Self>,
-    ) -> Option<(&'a mut T, &'a mut U)> {
+    ) -> Result<(&'a mut T, &'a mut U), TryLoadAllError> {
         load_all!( self => try a, b )
     }
 
@@ -101,7 +126,7 @@ pub trait CellOwner: UniqueType {
         a: &'a UtCell<T, Self>,
         b: &'a UtCell<U, Self>,
         c: &'a UtCell<V, Self>,
-    ) -> Option<(&'a mut T, &'a mut U, &'a mut V)> {
+    ) -> Result<(&'a mut T, &'a mut U, &'a mut V), TryLoadAllError> {
         load_all!( self => try a, b, c )
     }
 
@@ -112,7 +137,7 @@ pub trait CellOwner: UniqueType {
         b: &'a UtCell<U, Self>,
         c: &'a UtCell<V, Self>,
         d: &'a UtCell<X, Self>,
-    ) -> Option<(&'a mut T, &'a mut U, &'a mut V, &'a mut X)> {
+    ) -> Result<(&'a mut T, &'a mut U, &'a mut V, &'a mut X), TryLoadAllError> {
         load_all!( self => try a, b, c, d )
     }
 }
@@ -293,7 +318,9 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
     /// # Panic
     ///
     /// If this type isn't owned by the owner, then this function panics
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn assert_owned_by(&self, owner: &C) {
+        #[cfg_attr(debug_assertions, track_caller)]
         fn assert_owned_by_failed<T: ?Sized>() -> ! {
             panic!(
                 "Tried to access a {} with a value that doesn't own the cell",
@@ -311,6 +338,7 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
     /// # Panic
     ///
     /// If this type isn't owned by the owner, then this function panics
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn load<'a>(&'a self, owner: &'a C) -> &'a T {
         self.assert_owned_by(owner);
         // SAFETY:
@@ -329,6 +357,7 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
     /// # Panic
     ///
     /// If this type isn't owned by the owner, then this function panics
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn load_mut<'a>(&'a self, owner: &'a mut C) -> &'a mut T {
         self.assert_owned_by(owner);
         // SAFETY:

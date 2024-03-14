@@ -25,8 +25,11 @@ macro_rules! load_all {
         let hlist = $crate::__load_all_hlist![$($value),*];
         let owner: &mut _ = $owner;
 
-        $crate::load_all::CellList::assert_owned_by(&hlist, owner);
-        if $crate::load_all::CellList::all_elements_unique(&hlist) {
+        if let $crate::Result::Err(err) = $crate::load_all::CellList::is_owned_by(&hlist, owner, 0) {
+            $crate::Result::Err(err)
+        } else if let $crate::Result::Err(err) = $crate::load_all::CellList::all_elements_unique(&hlist, 0) {
+            $crate::Result::Err(err)
+        } else {
             $(
                 // SAFETY: CellList asserts that all values are owned by the owner
                 // and that all values in the list are unique
@@ -36,28 +39,11 @@ macro_rules! load_all {
 
             let $crate::load_all::Nil = hlist;
 
-            Some(($($value),*))
-        } else {
-            None
+            $crate::Result::Ok(($($value),*))
         }
     }};
     ($owner:expr => $($value:ident),+ $(,)?) => {{
-        let hlist = $crate::__load_all_hlist![$($value),*];
-        let owner: &mut _ = $owner;
-
-        $crate::load_all::CellList::assert_owned_by(&hlist, owner);
-        $crate::load_all::CellList::assert_all_elements_unique(&hlist);
-
-        $(
-            // SAFETY: CellList asserts that all values are owned by the owner
-            // and that all values in the list are unique
-            let $value = unsafe { hlist.value.load_mut_unchecked(owner) };
-            let hlist = hlist.rest;
-        )*
-
-        let $crate::load_all::Nil = hlist;
-
-        ($($value),*)
+        $crate::load_all![$owner => try $($value),*].unwrap()
     }};
 }
 
@@ -71,23 +57,17 @@ pub trait Seal {}
 pub unsafe trait CellList: Seal {
     type Owner: CellOwner + ?Sized;
 
-    fn assert_owned_by(&self, owner: &Self::Owner);
+    fn is_owned_by(&self, owner: &Self::Owner, i: usize) -> Result<(), super::TryLoadAllError>;
 
-    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool;
+    fn overlaps_with(
+        &self,
+        ptr: *const u8,
+        size: usize,
+        a: usize,
+        b: usize,
+    ) -> Result<(), super::TryLoadAllError>;
 
-    fn all_elements_unique(&self) -> bool;
-
-    fn assert_all_elements_unique(&self) {
-        #[cold]
-        #[inline(never)]
-        fn assert_failed() -> ! {
-            panic!("Detected overlapping cells while trying to load_all");
-        }
-
-        if !self.all_elements_unique() {
-            assert_failed()
-        }
-    }
+    fn all_elements_unique(&self, i: usize) -> Result<(), super::TryLoadAllError>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -108,17 +88,30 @@ impl<T, Ts: Seal> Seal for Cons<T, Ts> {}
 unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T, C>, Nil> {
     type Owner = C;
 
-    fn assert_owned_by(&self, owner: &Self::Owner) {
-        self.value.assert_owned_by(owner);
+    fn is_owned_by(&self, owner: &Self::Owner, i: usize) -> Result<(), super::TryLoadAllError> {
+        if self.value.is_owned_by(owner) {
+            Ok(())
+        } else {
+            Err(super::TryLoadAllError::NotOwned { arg: i })
+        }
     }
 
-    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool {
-        // ZSTs don't overlap
-        self.head_overlaps_with(ptr, size)
+    fn overlaps_with(
+        &self,
+        ptr: *const u8,
+        size: usize,
+        a: usize,
+        b: usize,
+    ) -> Result<(), super::TryLoadAllError> {
+        if self.head_overlaps_with(ptr, size) {
+            Err(super::TryLoadAllError::Overlaps { a, b })
+        } else {
+            Ok(())
+        }
     }
 
-    fn all_elements_unique(&self) -> bool {
-        true
+    fn all_elements_unique(&self, _: usize) -> Result<(), super::TryLoadAllError> {
+        Ok(())
     }
 }
 // SAFETY:
@@ -129,18 +122,40 @@ unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T
 unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Owner>, Ts> {
     type Owner = Ts::Owner;
 
-    fn assert_owned_by(&self, owner: &Self::Owner) {
-        self.value.assert_owned_by(owner);
-        self.rest.assert_owned_by(owner)
+    fn is_owned_by(&self, owner: &Self::Owner, i: usize) -> Result<(), crate::TryLoadAllError> {
+        if self.value.is_owned_by(owner) {
+            self.rest.is_owned_by(owner, i + 1)
+        } else {
+            Err(crate::TryLoadAllError::NotOwned { arg: i })
+        }
     }
 
-    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool {
+    fn overlaps_with(
+        &self,
+        ptr: *const u8,
+        size: usize,
+        a: usize,
+        b: usize,
+    ) -> Result<(), crate::TryLoadAllError> {
+        if self.head_overlaps_with(ptr, size) {
+            Err(crate::TryLoadAllError::Overlaps { a, b })
+        } else {
+            self.rest.overlaps_with(ptr, size, a, b + 1)
+        }
+    }
+
+    fn all_elements_unique(&self, i: usize) -> Result<(), crate::TryLoadAllError> {
         // ZSTs don't overlap
-        self.head_overlaps_with(ptr, size) || self.rest.overlaps_with(ptr, size)
-    }
+        if self.is_head_zst_value() {
+            return Ok(());
+        }
 
-    fn all_elements_unique(&self) -> bool {
-        !self.is_head_in_tail() && self.rest.all_elements_unique()
+        let (this, size) = self.head_range();
+        debug_assert!(size != 0);
+
+        self.rest.overlaps_with(this, size, i, i + 1)?;
+
+        self.rest.all_elements_unique(i + 1)
     }
 }
 
@@ -177,19 +192,5 @@ impl<T: ?Sized, O: CellOwner + ?Sized, Ts> Cons<&UtCell<T, O>, Ts> {
             self.value as *const UtCell<T, O> as *const u8,
             core::mem::size_of_val::<UtCell<T, O>>(self.value),
         )
-    }
-}
-
-impl<T: ?Sized, Ts: CellList> Cons<&UtCell<T, Ts::Owner>, Ts> {
-    fn is_head_in_tail(&self) -> bool {
-        // ZSTs don't overlap
-        if self.is_head_zst_value() {
-            return false;
-        }
-
-        let (this, size) = self.head_range();
-        debug_assert!(size != 0);
-
-        self.rest.overlaps_with(this, size)
     }
 }
