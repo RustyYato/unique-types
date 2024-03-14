@@ -49,6 +49,21 @@ pub unsafe trait Counter {
 
     /// Get the next value from the counter
     fn next_value(&self) -> Option<Self::Value>;
+
+    /// Reclaims the provided value so that it may be produced again
+    ///
+    /// If reclaimation was successful, then the Ok is returned
+    /// If reclaimation was unsuccessful, then the value is returned in the Err variant of the
+    /// result.
+    ///
+    /// # Safety
+    ///
+    /// You must own `value` and it must have been produced by `self.next_value()`
+    /// The value must not be used again until it is returned from [`self.next_value()`]
+    #[allow(unused)]
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        Err(value)
+    }
 }
 
 /// A value yielded by a counter
@@ -75,6 +90,12 @@ unsafe impl Counter for CellCounter<bool> {
             None
         }
     }
+
+    unsafe fn reclaim(&self, (): Self::Value) -> Result<(), Self::Value> {
+        debug_assert!(!self.0.get());
+        self.0.set(true);
+        Ok(())
+    }
 }
 
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
@@ -87,6 +108,16 @@ unsafe impl Counter for CellCounter<u8> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU8::new(x).unwrap())
+    }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        if self.0.get() == value.get() {
+            self.0.set(value.get().wrapping_sub(1));
+            Ok(())
+        } else {
+            Err(value)
+        }
     }
 }
 
@@ -101,6 +132,16 @@ unsafe impl Counter for CellCounter<u16> {
         self.0.set(x);
         Some(NonZeroU16::new(x).unwrap())
     }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        if self.0.get() == value.get() {
+            self.0.set(value.get().wrapping_sub(1));
+            Ok(())
+        } else {
+            Err(value)
+        }
+    }
 }
 
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
@@ -113,6 +154,16 @@ unsafe impl Counter for CellCounter<u32> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU32::new(x).unwrap())
+    }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        if self.0.get() == value.get() {
+            self.0.set(value.get().wrapping_sub(1));
+            Ok(())
+        } else {
+            Err(value)
+        }
     }
 }
 
@@ -127,6 +178,16 @@ unsafe impl Counter for CellCounter<u64> {
         self.0.set(x);
         Some(NonZeroU64::new(x).unwrap())
     }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        if self.0.get() == value.get() {
+            self.0.set(value.get().wrapping_sub(1));
+            Ok(())
+        } else {
+            Err(value)
+        }
+    }
 }
 
 // SAFETY: next_value always increments itself so it can never return the same value multiple times
@@ -139,6 +200,16 @@ unsafe impl Counter for CellCounter<u128> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU128::new(x).unwrap())
+    }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        if self.0.get() == value.get() {
+            self.0.set(value.get().wrapping_sub(1));
+            Ok(())
+        } else {
+            Err(value)
+        }
     }
 }
 
@@ -154,13 +225,18 @@ unsafe impl Counter for AtomicCounterBool {
     fn next_value(&self) -> Option<Self::Value> {
         if self
             .0
-            .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
             Some(())
         } else {
             None
         }
+    }
+
+    unsafe fn reclaim(&self, _: Self::Value) -> Result<(), Self::Value> {
+        self.0.store(false, Ordering::Release);
+        Ok(())
     }
 }
 
@@ -176,13 +252,26 @@ unsafe impl Counter for AtomicCounterU8 {
     fn next_value(&self) -> Option<Self::Value> {
         let x = 1 + self
             .0
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| x.checked_add(1))
+            .fetch_update(Ordering::Acquire, Ordering::Relaxed, |x| x.checked_add(1))
             .ok()?;
 
         // SAFETY: fetch_update will only return Ok if the closure didn't return None
         // and it will return the old value (before the closure was run), so adding 1 to it
         // will yield a non-zero value
         Some(unsafe { NonZeroU8::new_unchecked(x) })
+    }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        self.0
+            .compare_exchange(
+                value.get(),
+                value.get().wrapping_sub(1),
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+            .map(drop)
+            .map_err(|_| value)
     }
 }
 
@@ -206,6 +295,19 @@ unsafe impl Counter for AtomicCounterU16 {
         // will yield a non-zero value
         Some(unsafe { NonZeroU16::new_unchecked(x) })
     }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        self.0
+            .compare_exchange(
+                value.get(),
+                value.get().wrapping_sub(1),
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+            .map(drop)
+            .map_err(|_| value)
+    }
 }
 
 /// A thread-safe counter for [`NonZeroU32`]
@@ -228,6 +330,19 @@ unsafe impl Counter for AtomicCounterU32 {
         // will yield a non-zero value
         Some(unsafe { NonZeroU32::new_unchecked(x) })
     }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        self.0
+            .compare_exchange(
+                value.get(),
+                value.get().wrapping_sub(1),
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+            .map(drop)
+            .map_err(|_| value)
+    }
 }
 
 /// A thread-safe counter for [`NonZeroU64`]
@@ -249,6 +364,19 @@ unsafe impl Counter for AtomicCounterU64 {
         // and it will return the old value (before the closure was run), so adding 1 to it
         // will yield a non-zero value
         Some(unsafe { NonZeroU64::new_unchecked(x) })
+    }
+
+    unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
+        // reclaim if it is the last value used
+        self.0
+            .compare_exchange(
+                value.get(),
+                value.get().wrapping_sub(1),
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+            .map(drop)
+            .map_err(|_| value)
     }
 }
 

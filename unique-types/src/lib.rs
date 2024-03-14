@@ -25,6 +25,7 @@ pub extern crate alloc;
 mod macros;
 
 pub mod lifetime;
+pub mod reusable_runtime;
 pub mod runtime;
 pub mod unchecked;
 pub mod unique_indices;
