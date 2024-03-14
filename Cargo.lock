@@ -12,3 +12,10 @@ version = "0.1.0"
 dependencies = [
  "unique-types",
 ]
+
+[[package]]
+name = "ut-vec"
+version = "0.1.0"
+dependencies = [
+ "unique-types",
+]

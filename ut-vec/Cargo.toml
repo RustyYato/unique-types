@@ -1,0 +1,7 @@
+[package]
+name = "ut-vec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+unique-types = { path = '../unique-types' }
