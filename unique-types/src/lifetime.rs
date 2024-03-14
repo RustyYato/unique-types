@@ -61,6 +61,12 @@ unsafe impl<'brand> crate::UniqueType for LifetimeUt<'brand> {
 // created the token.
 unsafe impl crate::UniqueToken for LifetimeUt<'_> {}
 
+impl crate::TrivialToken for LifetimeUtToken<'_> {
+    const NEW: Self = Self {
+        _brand: Invariant(PhantomData),
+    };
+}
+
 /// Creates a type with a unique lifetime
 ///
 /// ```compile_fail,E0597

@@ -99,3 +99,10 @@ unsafe impl<C: CounterRef> UniqueType for RuntimeUt<C> {
 // since RuntimeUt doesn't expose it outside this module
 // So no other RuntimeUt can ever have the same value
 unsafe impl<C: CounterRef> UniqueToken for RuntimeUt<C> {}
+
+impl<C: CounterRef<Value = ()>> crate::TrivialToken for RuntimeUtToken<C> {
+    const NEW: Self = Self {
+        value: (),
+        _ty_traits: PhantomData,
+    };
+}

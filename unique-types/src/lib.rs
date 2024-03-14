@@ -75,6 +75,14 @@ pub unsafe trait UniqueType {
 /// condition above that only the value that created the value owns the token.
 pub unsafe trait UniqueToken: UniqueType {}
 
+/// A token type which can be trivially created and copied around
+///
+/// This type should be zero sized and 1 aligned
+pub trait TrivialToken: Copy {
+    /// The instance of this type
+    const NEW: Self;
+}
+
 /// SAFETY: &mut T gets unique access to the value of `T`, and every value of `T` is distinct
 /// so by transitivity, all values of `&mut T` are distinct
 unsafe impl<T: UniqueType + ?Sized> UniqueType for &mut T {

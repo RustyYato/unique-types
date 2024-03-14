@@ -97,6 +97,13 @@ unsafe impl<C: CounterRef> UniqueType for ReuseRuntimeUt<C> {
     }
 }
 
+impl<C: CounterRef<Value = ()>> crate::TrivialToken for ReuseRuntimeUtToken<C> {
+    const NEW: Self = Self {
+        value: (),
+        _ty_traits: PhantomData,
+    };
+}
+
 impl<C: CounterRef> Drop for ReuseRuntimeUt<C> {
     fn drop(&mut self) {
         // SAFETY:
