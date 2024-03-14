@@ -38,6 +38,13 @@ impl LifetimeUt<'_> {
     }
 }
 
+impl LifetimeUtToken<'_> {
+    /// Create a new [`LifetimeUtToken`]
+    pub const fn new() -> Self {
+        crate::TrivialToken::NEW
+    }
+}
+
 // SAFETY: This type ensures that there can't be two instances of the same type
 // via lifetime tricks. So it's not possible to even call the `no_duplicates` function
 // let alone trigger any asserts in the function.
