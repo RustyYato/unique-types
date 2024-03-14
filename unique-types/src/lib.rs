@@ -26,6 +26,7 @@ mod macros;
 
 pub mod lifetime;
 pub mod reusable_runtime;
+pub mod reuse;
 pub mod runtime;
 pub mod unchecked;
 pub mod unique_indices;

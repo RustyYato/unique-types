@@ -54,25 +54,25 @@ impl<C: CounterRef> Hash for ReuseRuntimeUtToken<C> {
 }
 
 impl ReuseRuntimeUt {
-    /// Create a new [`RuntimeUt`] based on the [`GlobalCounter`]
+    /// Create a new [`ReuseRuntimeUt`] based on the [`GlobalCounter`]
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_counter()
     }
 
-    /// Try to create a new [`RuntimeUt`] based on the [`GlobalCounter`]
+    /// Try to create a new [`ReuseRuntimeUt`] based on the [`GlobalCounter`]
     pub fn try_new() -> Option<Self> {
         Self::try_with_counter()
     }
 }
 
 impl<C: CounterRef> ReuseRuntimeUt<C> {
-    /// Create a new [`RuntimeUt`] based on the given counter
+    /// Create a new [`ReuseRuntimeUt`] based on the given counter
     pub fn with_counter() -> Self {
         Self::try_with_counter().expect("Tried to create a new RuntimeUt from an exhausted counter")
     }
 
-    /// Create a new [`RuntimeUt`] based on the given counter
+    /// Create a new [`ReuseRuntimeUt`] based on the given counter
     pub fn try_with_counter() -> Option<Self> {
         Some(Self {
             _ty_traits: PhantomData,
