@@ -1,5 +1,5 @@
 #[cfg(feature = "std")]
-unique_types::thread_local_custom_counter! {
+unique_types::custom_thread_local_counter! {
     pub struct TlGlobal(core::num::NonZeroU8);
 }
 
@@ -16,6 +16,7 @@ fn main() {
 
     let a_token = a.token();
 
+    #[allow(clippy::drop_non_drop)]
     drop(a);
 
     let c = unique_types::runtime::RuntimeUt::<TlGlobal>::with_counter();
