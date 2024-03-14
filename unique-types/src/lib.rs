@@ -11,6 +11,7 @@
 //! A crate to create and manage types who's values are all unique
 
 pub mod lifetime;
+pub mod runtime;
 pub mod unchecked;
 pub mod unique_indices;
 

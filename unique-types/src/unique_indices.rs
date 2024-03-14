@@ -4,6 +4,7 @@
 
 use core::{
     cell::Cell,
+    hash::Hash,
     num::{NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8},
     sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
 };
@@ -17,10 +18,10 @@ pub unsafe trait CounterRef {
     /// The counter this value references
     type Counter: Counter<Value = Self::Value>;
     /// The counter value the counter produces
-    type Value: Copy + Eq;
+    type Value: Copy + Ord + Hash;
 
     /// Access the counter reference
-    fn with<T>(&self, f: impl FnOnce(&Self::Counter) -> T) -> T;
+    fn with<T>(f: impl FnOnce(&Self::Counter) -> T) -> T;
 }
 
 /// A global [`CounterRef`] that yields [`NonZeroU64`]
@@ -31,7 +32,7 @@ unsafe impl CounterRef for GlobalCounter {
     type Counter = AtomicCounterU64;
     type Value = NonZeroU64;
 
-    fn with<T>(&self, f: impl FnOnce(&Self::Counter) -> T) -> T {
+    fn with<T>(f: impl FnOnce(&Self::Counter) -> T) -> T {
         static GLOBAL_COUNTER: AtomicCounterU64 = Counter::NEW;
         f(&GLOBAL_COUNTER)
     }
@@ -46,7 +47,7 @@ unsafe impl CounterRef for GlobalCounter {
 /// And all copies of the value must compare equal
 pub unsafe trait Counter {
     /// The value yielded by [`Counter::next_value`]
-    type Value: Copy + Eq;
+    type Value: Copy + Ord + Hash;
     /// A type which implements all the traits needed to ensure that the
     /// value isn't exposed to threads if it shouldn't be
     type TypeTraits;
