@@ -10,6 +10,9 @@
 //!
 //! A crate to create and manage types who's values are all unique
 
+#[macro_use]
+mod macros;
+
 pub mod lifetime;
 pub mod runtime;
 pub mod unchecked;

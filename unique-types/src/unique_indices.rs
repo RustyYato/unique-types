@@ -24,18 +24,10 @@ pub unsafe trait CounterRef {
     fn with<T>(f: impl FnOnce(&Self::Counter) -> T) -> T;
 }
 
-/// A global [`CounterRef`] that yields [`NonZeroU64`]
-pub struct GlobalCounter;
-
-// SAFETY: GLOBAL_COUNTER is private to with and GLOBAL_COUNTER is always passed to the closure
-unsafe impl CounterRef for GlobalCounter {
-    type Counter = AtomicCounterU64;
-    type Value = NonZeroU64;
-
-    fn with<T>(f: impl FnOnce(&Self::Counter) -> T) -> T {
-        static GLOBAL_COUNTER: AtomicCounterU64 = Counter::NEW;
-        f(&GLOBAL_COUNTER)
-    }
+custom_counter! {
+    /// A [`CounterRef`] which yields [`NonZeroU64`]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct GlobalCounter(NonZeroU64);
 }
 
 /// A counter type is one where you can call next_value until there are no more values to yield
