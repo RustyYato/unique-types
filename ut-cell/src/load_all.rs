@@ -21,7 +21,27 @@ macro_rules! __load_all_hlist {
 
 #[macro_export]
 macro_rules! load_all {
-    ($owner:expr => $(let $name:pat = $value:expr;)*) => {
+    ($owner:expr => try $($value:ident),+ $(,)?) => {{
+        let hlist = $crate::__load_all_hlist![$($value),*];
+        let owner: &mut _ = $owner;
+
+        $crate::load_all::CellList::assert_owned_by(&hlist, owner);
+        if $crate::load_all::CellList::all_elements_unique(&hlist) {
+            $(
+                // SAFETY: CellList asserts that all values are owned by the owner
+                // and that all values in the list are unique
+                let $value = unsafe { hlist.value.load_mut_unchecked(owner) };
+                let hlist = hlist.rest;
+            )*
+
+            let $crate::load_all::Nil = hlist;
+
+            Some(($($value),*))
+        } else {
+            None
+        }
+    }};
+    ($owner:expr => $($value:ident),+ $(,)?) => {{
         let hlist = $crate::__load_all_hlist![$($value),*];
         let owner: &mut _ = $owner;
 
@@ -29,28 +49,16 @@ macro_rules! load_all {
         $crate::load_all::CellList::assert_all_elements_unique(&hlist);
 
         $(
-            let $name = unsafe { hlist.value.load_mut_unchecked(owner) };
+            // SAFETY: CellList asserts that all values are owned by the owner
+            // and that all values in the list are unique
+            let $value = unsafe { hlist.value.load_mut_unchecked(owner) };
             let hlist = hlist.rest;
         )*
 
         let $crate::load_all::Nil = hlist;
-    };
-    ($owner:expr => else $on_failure:expr => $(let $name:pat = $value:expr;)*) => {
-        let hlist = $crate::__load_all_hlist![$($value),*];
-        let owner: &mut _ = $owner;
 
-        $crate::load_all::CellList::assert_owned_by(&hlist, owner);
-        let true = $crate::load_all::CellList::all_elements_unique(&hlist) else {
-            $on_failure
-        };
-
-        $(
-            let $name = unsafe { hlist.value.load_mut_unchecked(owner) };
-            let hlist = hlist.rest;
-        )*
-
-        let $crate::load_all::Nil = hlist;
-    };
+        ($($value),*)
+    }};
 }
 
 pub trait Seal {}
@@ -59,6 +67,7 @@ pub trait Seal {}
 ///
 /// assert_owned_by must check that all values in the list are owned by the given owner
 /// assert_all_elements_unique must check that all values in the list do no overlap
+/// overlaps_with must check that all cells in the list don't overlap with the given memory region
 pub unsafe trait CellList: Seal {
     type Owner: CellOwner + ?Sized;
 
@@ -91,6 +100,11 @@ pub struct Cons<T, Ts> {
 
 impl Seal for Nil {}
 impl<T, Ts: Seal> Seal for Cons<T, Ts> {}
+// SAFETY:
+//
+// assert_owned_by does check that all values in the list are owned by the given owner
+// there is only one element in the list, so there can't be any overlaps
+// overlaps_with does check that all cells in the list don't overlap with the given memory region
 unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T, C>, Nil> {
     type Owner = C;
 
@@ -107,7 +121,11 @@ unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T
         true
     }
 }
-
+// SAFETY:
+//
+// assert_owned_by does check that all values in the list are owned by the given owner
+// the head is checked that it doesn't overlap with any other element in the list
+// overlaps_with does check that all cells in the list don't overlap with the given memory region
 unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Owner>, Ts> {
     type Owner = Ts::Owner;
 
