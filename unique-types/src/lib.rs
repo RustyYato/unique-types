@@ -10,6 +10,8 @@
 //!
 //! A crate to create and manage types who's values are all unique
 
+pub mod unchecked;
+
 /// A type where all values of the type are distinct from each other.
 ///
 /// # Safety
