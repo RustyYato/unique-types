@@ -35,6 +35,22 @@ macro_rules! load_all {
 
         let $crate::load_all::Nil = hlist;
     };
+    ($owner:expr => else $on_failure:expr => $(let $name:pat = $value:expr;)*) => {
+        let hlist = $crate::__load_all_hlist![$($value),*];
+        let owner: &mut _ = $owner;
+
+        $crate::load_all::CellList::assert_owned_by(&hlist, owner);
+        let true = $crate::load_all::CellList::all_elements_unique(&hlist) else {
+            $on_failure
+        };
+
+        $(
+            let $name = unsafe { hlist.value.load_mut_unchecked(owner) };
+            let hlist = hlist.rest;
+        )*
+
+        let $crate::load_all::Nil = hlist;
+    };
 }
 
 pub trait Seal {}
@@ -48,9 +64,21 @@ pub unsafe trait CellList: Seal {
 
     fn assert_owned_by(&self, owner: &Self::Owner);
 
-    fn contains(&self, ptr: *mut ()) -> bool;
+    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool;
 
-    fn assert_all_elements_unique(&self);
+    fn all_elements_unique(&self) -> bool;
+
+    fn assert_all_elements_unique(&self) {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed() -> ! {
+            panic!("Detected overlapping cells while trying to load_all");
+        }
+
+        if !self.all_elements_unique() {
+            assert_failed()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -70,12 +98,14 @@ unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T
         self.value.assert_owned_by(owner);
     }
 
-    fn contains(&self, ptr: *mut ()) -> bool {
+    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool {
         // ZSTs don't overlap
-        !self.is_head_zst_value() && ptr == self.value.as_ptr().cast()
+        self.head_overlaps_with(ptr, size)
     }
 
-    fn assert_all_elements_unique(&self) {}
+    fn all_elements_unique(&self) -> bool {
+        true
+    }
 }
 
 unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Owner>, Ts> {
@@ -86,14 +116,13 @@ unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Own
         self.rest.assert_owned_by(owner)
     }
 
-    fn contains(&self, ptr: *mut ()) -> bool {
+    fn overlaps_with(&self, ptr: *const u8, size: usize) -> bool {
         // ZSTs don't overlap
-        !self.is_head_zst_value() && ptr == self.value.as_ptr().cast() || self.rest.contains(ptr)
+        self.head_overlaps_with(ptr, size) || self.rest.overlaps_with(ptr, size)
     }
 
-    fn assert_all_elements_unique(&self) {
-        assert!(!self.is_head_in_tail());
-        self.rest.assert_all_elements_unique();
+    fn all_elements_unique(&self) -> bool {
+        !self.is_head_in_tail() && self.rest.all_elements_unique()
     }
 }
 
@@ -101,11 +130,48 @@ impl<T: ?Sized, O: CellOwner + ?Sized, Ts> Cons<&UtCell<T, O>, Ts> {
     fn is_head_zst_value(&self) -> bool {
         core::mem::size_of_val(&self.value.value) == 0
     }
+
+    fn head_overlaps_with(&self, ptr: *const u8, size: usize) -> bool {
+        if self.is_head_zst_value() {
+            return false;
+        }
+
+        let (this, this_size) = self.head_range();
+        debug_assert!(this_size != 0);
+        debug_assert!(size != 0);
+
+        if core::mem::size_of::<O::Token>() == 0 {
+            // if the token is a ZST, then it's possible for the cells to overlap
+            // so we need to do a full range overlap check
+            let this_end = this.wrapping_add(this_size);
+            let end = ptr.wrapping_add(size);
+
+            this < end && ptr < this_end
+        } else {
+            // if the token is not a ZST, then it is impossible for cells to overlap
+            // in this case just use pointer identity since that will be correct
+            ptr == this
+        }
+    }
+
+    fn head_range(&self) -> (*const u8, usize) {
+        (
+            self.value as *const UtCell<T, O> as *const u8,
+            core::mem::size_of_val::<UtCell<T, O>>(self.value),
+        )
+    }
 }
 
 impl<T: ?Sized, Ts: CellList> Cons<&UtCell<T, Ts::Owner>, Ts> {
     fn is_head_in_tail(&self) -> bool {
         // ZSTs don't overlap
-        !self.is_head_zst_value() && self.rest.contains(self.value.as_ptr().cast())
+        if self.is_head_zst_value() {
+            return false;
+        }
+
+        let (this, size) = self.head_range();
+        debug_assert!(size != 0);
+
+        self.rest.overlaps_with(this, size)
     }
 }

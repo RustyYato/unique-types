@@ -61,6 +61,54 @@ pub trait CellOwner: UniqueType {
         );
         (a, b, c, d)
     }
+
+    fn try_get_mut2<'a, T: ?Sized, U: ?Sized>(
+        &'a mut self,
+        a: &'a UtCell<T, Self>,
+        b: &'a UtCell<U, Self>,
+    ) -> Option<(&'a mut T, &'a mut U)> {
+        load_all!(
+            self =>
+            else return None =>
+            let a = a;
+            let b = b;
+        );
+        Some((a, b))
+    }
+
+    fn try_get_mut3<'a, T: ?Sized, U: ?Sized, V: ?Sized>(
+        &'a mut self,
+        a: &'a UtCell<T, Self>,
+        b: &'a UtCell<U, Self>,
+        c: &'a UtCell<V, Self>,
+    ) -> Option<(&'a mut T, &'a mut U, &'a mut V)> {
+        load_all!(
+            self =>
+            else return None =>
+            let a = a;
+            let b = b;
+            let c = c;
+        );
+        Some((a, b, c))
+    }
+
+    fn try_get_mut4<'a, T: ?Sized, U: ?Sized, V: ?Sized, X: ?Sized>(
+        &'a mut self,
+        a: &'a UtCell<T, Self>,
+        b: &'a UtCell<U, Self>,
+        c: &'a UtCell<V, Self>,
+        d: &'a UtCell<X, Self>,
+    ) -> Option<(&'a mut T, &'a mut U, &'a mut V, &'a mut X)> {
+        load_all!(
+            self =>
+            else return None =>
+            let a = a;
+            let b = b;
+            let c = c;
+            let d = d;
+        );
+        Some((a, b, c, d))
+    }
 }
 
 #[repr(C)]
@@ -106,7 +154,61 @@ where
     pub fn as_slice_of_cells(&self) -> &[UtCell<T, C>] {
         validate_trivial_token::<C::Token>(mem::align_of::<T>);
 
-        unsafe { &*(self as *const Self as *mut [UtCell<T, C>]) }
+        unsafe { &*(self as *const Self as *const [UtCell<T, C>]) }
+    }
+
+    #[inline]
+    pub fn from_slice_of_cells(slice: &[UtCell<T, C>]) -> &Self {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &*(slice as *const [UtCell<T, C>] as *const Self) }
+    }
+
+    #[inline]
+    pub fn as_slice_of_cells_mut(&mut self) -> &mut [UtCell<T, C>] {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &mut *(self as *mut Self as *mut [UtCell<T, C>]) }
+    }
+
+    #[inline]
+    pub fn from_slice_of_cells_mut(slice: &mut [UtCell<T, C>]) -> &mut Self {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &mut *(slice as *mut [UtCell<T, C>] as *mut Self) }
+    }
+}
+
+impl<T, C: CellOwner + ?Sized, const N: usize> UtCell<[T; N], C>
+where
+    C::Token: TrivialToken,
+{
+    #[inline]
+    pub fn as_array_of_cells(&self) -> &[UtCell<T, C>; N] {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &*(self as *const Self as *const [UtCell<T, C>; N]) }
+    }
+
+    #[inline]
+    pub fn from_array_of_cells(array: &[UtCell<T, C>; N]) -> &Self {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &*(array as *const [UtCell<T, C>; N] as *const Self) }
+    }
+
+    #[inline]
+    pub fn as_array_of_cells_mut(&mut self) -> &mut [UtCell<T, C>; N] {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &mut *(self as *mut Self as *mut [UtCell<T, C>; N]) }
+    }
+
+    #[inline]
+    pub fn from_array_of_cells_mut(array: &mut [UtCell<T, C>; N]) -> &mut Self {
+        validate_trivial_token::<C::Token>(mem::align_of::<T>);
+
+        unsafe { &mut *(array as *mut [UtCell<T, C>; N] as *mut Self) }
     }
 }
 
