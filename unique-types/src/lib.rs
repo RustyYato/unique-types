@@ -10,6 +10,7 @@
 //!
 //! A crate to create and manage types who's values are all unique
 
+pub mod lifetime;
 pub mod unchecked;
 
 /// A type where all values of the type are distinct from each other.
@@ -19,10 +20,11 @@ pub mod unchecked;
 /// It should be impossible to trigger any of the asserts in the following function
 ///
 /// ```
+/// # use unique_types::UniqueType;
 /// fn no_duplicates<T: UniqueType>(a: T, b: T) {
 ///     assert!(a.token() != b.token());
-///     assert!( !a.owns(b.token()) );
-///     assert!( !b.owns(a.token()) );
+///     assert!( !a.owns(&b.token()) );
+///     assert!( !b.owns(&a.token()) );
 /// }
 /// ```
 pub unsafe trait UniqueType {
