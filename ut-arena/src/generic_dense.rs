@@ -9,10 +9,12 @@ use crate::{
     key::ArenaIndex,
 };
 
+use ut_vec::UtVecElementIndex;
+
 pub struct GenericDenseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
 {
     values: Vec<T>,
-    // index_rev: Vec<usize>,
+    index_rev: Vec<MaybeUninit<I>>,
     index_fwd: GenericSparseArena<I, O, G, I>,
 }
 
@@ -30,6 +32,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     pub const fn new(owner: O) -> Self {
         Self {
             values: Vec::new(),
+            index_rev: Vec::new(),
             index_fwd: GenericSparseArena::new(owner),
         }
     }
@@ -54,9 +57,18 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
 
 impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     pub fn vacant_slot(&mut self) -> VacantSlot<'_, T, O, G, I> {
+        let slot = self.index_fwd.vacant_slot();
         if self.values.len() == self.values.capacity() {
             self.values.reserve(1);
         }
+        if self.index_rev.len() == self.values.len() {
+            self.index_rev.reserve(1);
+            // MaybeUninit is always initialized, even for uninitialized bytes
+            unsafe { self.index_rev.set_len(self.index_rev.capacity()) }
+        }
+        let index_rev = unsafe { self.index_rev.get_unchecked_mut(self.values.len()) };
+        *index_rev = MaybeUninit::new(I::from_usize(slot.key::<usize>()));
+
         let mut values = NonNull::from(&mut self.values);
         let value = unsafe { values.as_mut() }.spare_capacity_mut();
         // SAFETY: there is guaranteed to be some spare capacity since we reserved space above
@@ -101,6 +113,45 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     pub unsafe fn get_unchecked_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> &mut T {
         let index = unsafe { *self.index_fwd.get_unchecked(key) };
         unsafe { self.values.get_unchecked_mut(index.to_usize()) }
+    }
+
+    fn remove_at(&mut self, index_fwd: I) -> T {
+        let end = self.values.len().wrapping_sub(1);
+        // we are going to swap remove index_fwd out, so we will need to update the mappings
+        // of the end of the list
+        let index_end_rev = unsafe { self.index_rev.get_unchecked(end).assume_init_read() };
+
+        // we need to update the forward mapping to show that the end is now pointing to index_fwd
+        unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
+        let index_fwd = index_fwd.to_usize();
+
+        // the end is now at index_fwd so we need to update the reverse mapping accordingly
+        unsafe { *self.index_rev.get_unchecked_mut(index_fwd) = MaybeUninit::new(index_end_rev) }
+
+        // this is to eliminate the bounds check in self.values.swap_remove
+        if index_fwd.to_usize() >= self.values.len() {
+            unsafe { core::hint::unreachable_unchecked() }
+        }
+
+        self.values.swap_remove(index_fwd)
+    }
+
+    #[inline]
+    pub fn try_remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<T> {
+        let index_fwd = self.index_fwd.try_remove(key)?;
+        Some(self.remove_at(index_fwd))
+    }
+
+    #[inline]
+    pub fn remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> T {
+        let index_fwd = self.index_fwd.remove(key);
+        self.remove_at(index_fwd)
+    }
+
+    #[inline]
+    pub unsafe fn remove_unchecked<K: ArenaIndex<O, G>>(&mut self, key: K) -> T {
+        let index_fwd = unsafe { self.index_fwd.remove_unchecked(key) };
+        self.remove_at(index_fwd)
     }
 
     pub fn values(&self) -> &[T] {
