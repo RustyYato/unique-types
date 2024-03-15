@@ -89,6 +89,11 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 
     /// see [`Vec::as_slice`]
+    pub fn owner(&self) -> &O {
+        &self.owner
+    }
+
+    /// see [`Vec::as_slice`]
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -96,6 +101,11 @@ impl<T, O: ?Sized> UtVec<T, O> {
     /// see [`Vec::as_mut_slice`]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.data
+    }
+
+    /// see [`Vec::as_mut_slice`]
+    pub fn as_mut_slice_and_owner(&mut self) -> (&mut [T], &O) {
+        (&mut self.data, &self.owner)
     }
 
     /// see [`Vec::len`]
@@ -176,6 +186,56 @@ impl<T, O: ?Sized> UtVec<T, O> {
         T: Clone,
     {
         self.data.extend_from_within(range)
+    }
+
+    /// see [`slice::get_unchecked`]
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds and if it's a range, the start <= end
+    pub unsafe fn get_unchecked<I: UtVecIndex<O>>(&self, index: I) -> &I::Output<T> {
+        let slice = NonNull::from(self.data.as_slice());
+        // SAFETY: the caller ensures that this is safe
+        let slice = unsafe { index.offset_slice(slice, &self.owner) };
+        // SAFETY: UtVecIndex guarantees that offset_slice will return a valid pointer
+        // into a subset of the slice
+        unsafe { &*slice.as_ptr() }
+    }
+
+    /// see [`slice::get_unchecked_mut`]
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds and if it's a range, the start <= end
+    pub unsafe fn get_unchecked_mut<I: UtVecIndex<O>>(&mut self, index: I) -> &mut I::Output<T> {
+        let slice = NonNull::from(self.data.as_mut_slice());
+        // SAFETY: the caller ensures that this is safe
+        let slice = unsafe { index.offset_slice(slice, &self.owner) };
+        // SAFETY: UtVecIndex guarantees that offset_slice will return a valid pointer
+        // into a subset of the slice
+        unsafe { &mut *slice.as_ptr() }
+    }
+
+    /// see [`Vec::extend_from_slice`]
+    pub fn get<I: UtVecIndex<O>>(&self, index: I) -> Option<&I::Output<T>> {
+        if index.is_in_bounds(self.len(), &self.owner).is_ok() {
+            // SAFETY: index.is_in_bounds checks that the index is in bounds, and ranges are well
+            // ordered
+            Some(unsafe { self.get_unchecked(index) })
+        } else {
+            None
+        }
+    }
+
+    /// see [`Vec::extend_from_slice`]
+    pub fn get_mut<I: UtVecIndex<O>>(&mut self, index: I) -> Option<&mut I::Output<T>> {
+        if index.is_in_bounds(self.len(), &self.owner).is_ok() {
+            // SAFETY: index.is_in_bounds checks that the index is in bounds, and ranges are well
+            // ordered
+            Some(unsafe { self.get_unchecked_mut(index) })
+        } else {
+            None
+        }
     }
 }
 
@@ -294,13 +354,8 @@ impl<T, O, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
     fn index(&self, index: I) -> &Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
             Err(err) => err.handle(),
-            // SAFETY: UtVecIndex guarantees that offset_slice will return a valid pointer
-            // into a subset of the slice
-            Ok(()) => unsafe {
-                let slice = NonNull::from(self.data.as_slice());
-                let slice = index.offset_slice(slice, &self.owner);
-                &*slice.as_ptr()
-            },
+            // SAFETY: is_in_bounds ensures that the index is in bounds, and ranges are well ordered
+            Ok(()) => unsafe { self.get_unchecked(index) },
         }
     }
 }
@@ -309,13 +364,8 @@ impl<T, O, I: UtVecIndex<O>> ops::IndexMut<I> for UtVec<T, O> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
             Err(err) => err.handle(),
-            // SAFETY: UtVecIndex guarantees that offset_slice will return a valid pointer
-            // into a subset of the slice
-            Ok(()) => unsafe {
-                let slice = NonNull::from(self.data.as_mut_slice());
-                let slice = index.offset_slice(slice, &self.owner);
-                &mut *slice.as_ptr()
-            },
+            // SAFETY: is_in_bounds ensures that the index is in bounds, and ranges are well ordered
+            Ok(()) => unsafe { self.get_unchecked_mut(index) },
         }
     }
 }
