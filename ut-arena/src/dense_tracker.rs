@@ -1,4 +1,4 @@
-use core::ops;
+use core::{marker::PhantomData, ops};
 
 use alloc::vec::Vec;
 
@@ -44,10 +44,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, O, G, I> {
     }
 }
 
-impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I>
-where
-    O: core::fmt::Debug,
-{
+impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     pub fn vacant_slot(&mut self, len: usize) -> VacantSlot<'_, O, G, I> {
         assert_eq!(self.index_rev.len(), len);
         VacantSlot {
@@ -74,6 +71,21 @@ where
     #[inline]
     pub unsafe fn get_unchecked<K: ArenaIndex<O, G>>(&self, key: K) -> usize {
         unsafe { *self.index_fwd.get_unchecked(key) }.to_usize()
+    }
+
+    #[inline]
+    pub fn try_key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> Option<K> {
+        self.index_fwd.try_key_of(index)
+    }
+
+    #[inline]
+    pub fn key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
+        self.index_fwd.key_of(index)
+    }
+
+    #[inline]
+    pub unsafe fn key_of_unchecked<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
+        self.index_fwd.key_of_unchecked(index)
     }
 
     fn remove_at(&mut self, index_fwd: I) -> usize {
@@ -110,6 +122,14 @@ where
         let index_fwd = unsafe { self.index_fwd.remove_unchecked(key) };
         self.remove_at(index_fwd)
     }
+
+    pub fn keys<K: ArenaIndex<O, G>>(&self) -> Keys<'_, K, O, G, I> {
+        Keys {
+            index_rev: self.index_rev.iter(),
+            index_fwd: &self.index_fwd,
+            _key: PhantomData,
+        }
+    }
 }
 
 impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> ops::Index<K>
@@ -119,5 +139,49 @@ impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> ops::Index
 
     fn index(&self, index: K) -> &Self::Output {
         &self.index_fwd[index]
+    }
+}
+
+pub struct Keys<'a, K, O: ?Sized, G: Generation, I: InternalIndex> {
+    index_rev: core::slice::Iter<'a, I>,
+    index_fwd: &'a GenericSparseArena<I, O, G, I>,
+    _key: PhantomData<fn() -> K>,
+}
+
+impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> ExactSizeIterator
+    for Keys<'_, K, O, G, I>
+{
+}
+impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> Iterator
+    for Keys<'_, K, O, G, I>
+{
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index_rev = *self.index_rev.next()?;
+        Some(unsafe { self.index_fwd.key_of_unchecked(index_rev.to_usize()) })
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let index_rev = *self.index_rev.nth(n)?;
+        Some(unsafe { self.index_fwd.key_of_unchecked(index_rev.to_usize()) })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.index_rev.size_hint()
+    }
+}
+
+impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> DoubleEndedIterator
+    for Keys<'_, K, O, G, I>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let index_rev = *self.index_rev.next_back()?;
+        Some(unsafe { self.index_fwd.key_of_unchecked(index_rev.to_usize()) })
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let index_rev = *self.index_rev.nth_back(n)?;
+        Some(unsafe { self.index_fwd.key_of_unchecked(index_rev.to_usize()) })
     }
 }

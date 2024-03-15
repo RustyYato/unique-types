@@ -7,7 +7,7 @@ use core::{
 use ut_vec::{UtVec, UtVecElementIndex};
 
 use crate::{
-    generation::{DefaultGeneration, Generation},
+    generation::{self, DefaultGeneration, Generation},
     internal_index::InternalIndex,
     key::ArenaIndex,
 };
@@ -134,7 +134,9 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
             slots: UtVec::new(owner),
         }
     }
+}
 
+impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     #[cold]
     #[inline(never)]
     fn reserve_vacant_slot_slow(&mut self) {
@@ -206,6 +208,31 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     pub unsafe fn get_unchecked_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> &mut T {
         let slot = unsafe { self.slots.get_unchecked_mut(key.to_index()) };
         unsafe { &mut slot.filled.value }
+    }
+
+    #[inline]
+    pub fn try_key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> Option<K> {
+        let slot = self.slots.get(index)?;
+        if slot.generation().is_filled() {
+            Some(unsafe { K::new(index, &self.slots.owner(), slot.generation().to_filled()) })
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    pub fn key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
+        let slot = &self.slots[index];
+        if slot.generation().is_empty() {
+            crate::key::access_empty_slot(index)
+        }
+        unsafe { K::new(index, &self.slots.owner(), slot.generation().to_filled()) }
+    }
+
+    #[inline]
+    pub unsafe fn key_of_unchecked<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
+        let slot = unsafe { self.slots.get_unchecked(index) };
+        unsafe { K::new(index, &self.slots.owner(), slot.generation().to_filled()) }
     }
 
     #[inline]

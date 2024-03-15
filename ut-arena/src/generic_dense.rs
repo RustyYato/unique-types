@@ -131,6 +131,16 @@ where
     pub fn values_mut(&mut self) -> &mut [T] {
         &mut self.values
     }
+
+    #[inline]
+    pub fn tracker(&self) -> &GenericDenseTracker<O, G, I> {
+        &self.tracker
+    }
+
+    #[inline]
+    pub fn values_mut_and_tracker(&mut self) -> (&mut [T], &GenericDenseTracker<O, G, I>) {
+        (&mut self.values, &self.tracker)
+    }
 }
 
 impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex, T> ops::Index<K>

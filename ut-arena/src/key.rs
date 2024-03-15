@@ -36,7 +36,7 @@ fn matches_generation_failed<G: Generation>(generation: G, filled: G::Filled, in
 
 #[cold]
 #[inline(never)]
-fn access_empty_slot(index: usize) -> ! {
+pub(crate) fn access_empty_slot(index: usize) -> ! {
     panic!("Tried to access empy slot at index: {index}")
 }
 
