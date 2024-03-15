@@ -1,3 +1,5 @@
+use core::fmt;
+
 pub unsafe trait Generation: Copy + Eq {
     const EMPTY: Self;
 
@@ -12,6 +14,13 @@ pub unsafe trait Generation: Copy + Eq {
 
     fn matches(self, filled: Self::Filled) -> bool;
 
+    fn write_mismatch(
+        self,
+        filled: Self::Filled,
+        index: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result;
+
     fn is_empty(self) -> bool;
 
     #[inline]
@@ -23,11 +32,11 @@ pub unsafe trait Generation: Copy + Eq {
 type DefaultGenerationInner = gsize;
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultGeneration(DefaultGenerationInner);
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultGenerationFilled(<DefaultGenerationInner as Generation>::Filled);
 
 unsafe impl Generation for DefaultGeneration {
@@ -56,6 +65,16 @@ unsafe impl Generation for DefaultGeneration {
     }
 
     #[inline]
+    fn write_mismatch(
+        self,
+        filled: Self::Filled,
+        index: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        self.0.write_mismatch(filled.0, index, f)
+    }
+
+    #[inline]
     fn is_empty(self) -> bool {
         self.0.is_empty()
     }
@@ -67,7 +86,7 @@ unsafe impl Generation for DefaultGeneration {
 }
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoGeneration(bool);
 
 unsafe impl Generation for NoGeneration {
@@ -86,10 +105,24 @@ unsafe impl Generation for NoGeneration {
         Ok(Self(false))
     }
 
+    #[inline]
     unsafe fn to_filled(self) -> Self::Filled {}
 
+    #[inline]
     fn matches(self, (): Self::Filled) -> bool {
         self.0
+    }
+
+    fn write_mismatch(
+        self,
+        (): Self::Filled,
+        index: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "tried to access an empty slot at index {index}, which is illegal"
+        )
     }
 
     #[inline]
@@ -108,6 +141,18 @@ macro_rules! prim {
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq)]
         pub struct $name_filled(core::num::$filled_inner);
+
+        impl core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+
+        impl core::fmt::Debug for $name_filled {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
 
         unsafe impl Generation for $name {
             const EMPTY: Self = Self(0);
@@ -128,6 +173,18 @@ macro_rules! prim {
             #[inline]
             fn matches(self, filled: Self::Filled) -> bool {
                 self.0 == filled.0.get()
+            }
+
+            fn write_mismatch(
+                self,
+                filled: Self::Filled,
+                index: usize,
+                f: &mut fmt::Formatter<'_>,
+            ) -> fmt::Result {
+                write!(
+                    f,
+                    "tried to access arena with an expired key at index {index} with generation: {filled:?}, but expected generation: {self:?}"
+                )
             }
 
             #[inline]
@@ -154,6 +211,18 @@ macro_rules! prim_wrapping {
         #[derive(Clone, Copy, PartialEq, Eq)]
         pub struct $name_filled(core::num::$filled_inner);
 
+        impl core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+
+        impl core::fmt::Debug for $name_filled {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+
         unsafe impl Generation for $name {
             const EMPTY: Self = Self(0);
 
@@ -173,6 +242,18 @@ macro_rules! prim_wrapping {
             #[inline]
             fn matches(self, filled: Self::Filled) -> bool {
                 self.0 == filled.0.get()
+            }
+
+            fn write_mismatch(
+                self,
+                filled: Self::Filled,
+                index: usize,
+                f: &mut fmt::Formatter<'_>,
+            ) -> fmt::Result {
+                write!(
+                    f,
+                    "tried to access arena with an expired key at index {index} with generation: {filled:?}, but expected generation: {self:?}"
+                )
             }
 
             #[inline]

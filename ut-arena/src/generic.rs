@@ -1,7 +1,10 @@
-use std::mem::{ManuallyDrop, MaybeUninit};
+use core::{
+    mem::{ManuallyDrop, MaybeUninit},
+    ops,
+};
 
 use unique_types::UniqueToken;
-use ut_vec::{UtIndex, UtVec, UtVecIndex};
+use ut_vec::{UtIndex, UtVec, UtVecElementIndex};
 
 use crate::{
     generation::{DefaultGeneration, Generation},
@@ -123,10 +126,83 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
         slot.insert(value(key));
         key
     }
+
+    #[inline]
+    pub fn get<K: ArenaIndex<O, G>>(&self, key: K) -> Option<&T> {
+        let slot = self.slots.get(key.to_index())?;
+        if key.matches_generation(slot.generation()) {
+            Some(unsafe { &slot.filled.value })
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    pub fn get_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<&mut T> {
+        let slot = self.slots.get_mut(key.to_index())?;
+        if key.matches_generation(slot.generation()) {
+            Some(unsafe { &mut slot.filled.value })
+        } else {
+            None
+        }
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn matches_generation_failed<G: Generation>(generation: G, filled: G::Filled, index: usize) -> ! {
+    struct GenerationMatchFailed<G: Generation> {
+        generation: G,
+        filled: G::Filled,
+        index: usize,
+    }
+
+    impl<G: Generation> core::fmt::Display for GenerationMatchFailed<G> {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            self.generation.write_mismatch(self.filled, self.index, f)
+        }
+    }
+
+    panic!(
+        "{}",
+        GenerationMatchFailed {
+            generation,
+            filled,
+            index
+        }
+    )
+}
+
+#[cold]
+#[inline(never)]
+fn access_empty_slot(index: usize) -> ! {
+    panic!("Tried to access empy slot at index: {index}")
+}
+
+impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::Index<K>
+    for GenericSparseArena<T, O, G, I>
+{
+    type Output = T;
+
+    fn index(&self, index: K) -> &Self::Output {
+        let slot = &self.slots[index.to_index()];
+        index.assert_matches_generation(slot.generation());
+        unsafe { &slot.filled.value }
+    }
+}
+
+impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::IndexMut<K>
+    for GenericSparseArena<T, O, G, I>
+{
+    fn index_mut(&mut self, index: K) -> &mut Self::Output {
+        let slot = &mut self.slots[index.to_index()];
+        index.assert_matches_generation(slot.generation());
+        unsafe { &mut slot.filled.value }
+    }
 }
 
 pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
-    type UtIndex: UtVecIndex<O, OutputKind = ut_vec::Element>;
+    type UtIndex: UtVecElementIndex<O>;
 
     /// # Safety
     ///
@@ -136,6 +212,8 @@ pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
     fn to_index(&self) -> Self::UtIndex;
 
     fn matches_generation(self, g: G) -> bool;
+
+    fn assert_matches_generation(self, g: G);
 }
 
 unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
@@ -151,6 +229,12 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
 
     fn matches_generation(self, g: G) -> bool {
         g.is_filled()
+    }
+
+    fn assert_matches_generation(self, g: G) {
+        if g.is_empty() {
+            access_empty_slot(self)
+        }
     }
 }
 
@@ -169,6 +253,12 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex
     fn matches_generation(self, g: G) -> bool {
         g.is_filled()
     }
+
+    fn assert_matches_generation(self, g: G) {
+        if g.is_empty() {
+            access_empty_slot(self.get())
+        }
+    }
 }
 
 unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
@@ -184,6 +274,12 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
 
     fn matches_generation(self, g: G) -> bool {
         g.matches(self.generation)
+    }
+
+    fn assert_matches_generation(self, g: G) {
+        if !g.matches(self.generation) {
+            matches_generation_failed(g, self.generation, self.index)
+        }
     }
 }
 
@@ -204,5 +300,11 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKe
 
     fn matches_generation(self, g: G) -> bool {
         g.matches(self.generation)
+    }
+
+    fn assert_matches_generation(self, g: G) {
+        if !g.matches(self.generation) {
+            matches_generation_failed(g, self.generation, self.index.get())
+        }
     }
 }

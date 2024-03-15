@@ -489,15 +489,9 @@ pub trait UtVecIndex<O: ?Sized>: Seal {
 /// Any type which can be used to index into a [`UtVec`]
 ///
 /// This includes, usize, ranges over usize, [`UtIndex`], and ranges over [`UtIndex`]
-pub trait UtVecElementIndex<O: ?Sized>: UtVecIndex<O> {
-    /// Indexes into the slice without checking if self is in bounds
-    ///
-    /// # Safety
-    ///
-    /// `slice` must in a single allocated for it's entire length
-    /// `is_in_bounds` must return Ok when passed the length of the slice and
-    /// the owner associated with the slice
-    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T>;
+pub trait UtVecElementIndex<O: ?Sized>: UtVecIndex<O, OutputKind = Element> {
+    /// Get the underlying index that this value represents
+    fn get_index(&self) -> usize;
 }
 
 impl Seal for ops::RangeFull {}
@@ -546,9 +540,9 @@ impl<O: ?Sized> UtVecIndex<O> for usize {
 }
 
 impl<O: ?Sized> UtVecElementIndex<O> for usize {
-    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T> {
-        // SAFETY: ensured by caller
-        unsafe { self.offset_slice(slice, owner) }
+    #[inline]
+    fn get_index(&self) -> usize {
+        *self
     }
 }
 
@@ -730,9 +724,9 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for UtIndex<O> {
 }
 
 impl<O: ?Sized + UniqueToken> UtVecElementIndex<O> for UtIndex<O> {
-    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T> {
-        // SAFETY: ensured by caller
-        unsafe { self.offset_slice(slice, owner) }
+    #[inline]
+    fn get_index(&self) -> usize {
+        self.index
     }
 }
 
