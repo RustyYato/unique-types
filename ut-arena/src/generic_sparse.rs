@@ -157,7 +157,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     }
 
     #[inline]
-    pub fn get_unchecked_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> &mut T {
+    pub unsafe fn get_unchecked_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> &mut T {
         let slot = unsafe { self.slots.get_unchecked_mut(key.to_index()) };
         unsafe { &mut slot.filled.value }
     }
