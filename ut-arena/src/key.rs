@@ -1,3 +1,7 @@
+//! [`ArenaKey`] are the preferred keys of arenas which are specified through the [`ArenaIndex`] trait
+//!
+//! see them for more details
+
 use ut_vec::UtVecElementIndex;
 
 #[cfg(feature = "unique-types")]
@@ -7,6 +11,10 @@ use ut_vec::UtIndex;
 
 use crate::generation::{DefaultGeneration, Generation};
 
+/// [`ArenaKey`] is just an index and a generation pair
+///
+/// The generation is a snapshot of the generation of the slot's genration
+/// If the slot is removed, then this key will become invalidated.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
     index: I,
@@ -14,6 +22,7 @@ pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
 }
 
 impl<I, G: Generation> ArenaKey<I, G> {
+    /// Get the underlying index type of [`ArenaKey`]
     #[inline]
     pub fn index(self) -> I {
         self.index
@@ -51,7 +60,16 @@ pub(crate) fn access_empty_slot(index: usize) -> ! {
     panic!("Tried to access empy slot at index: {index}")
 }
 
+/// A trait that manages access to arenas
+///
+/// # Safety
+///
+/// * `to_index` must not change what index it returns
+/// * `matches_generation` should only succeed if the generation is filled
+/// * `assert_matches_generation` should only return normally if `matches_generation` would have
+///     returned true
 pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
+    /// The underlying index type
     type UtIndex: UtVecElementIndex<O> + Copy;
 
     /// # Safety
@@ -59,13 +77,18 @@ pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
     /// The index must be in bounds for the Arena that
     unsafe fn new(index: usize, owner: &O, generation: G::Filled) -> Self;
 
+    /// Get the underlying index type
     fn to_index(&self) -> Self::UtIndex;
 
+    /// Check that this key matches the generation, return false if it doesn't
     fn matches_generation(self, g: G) -> bool;
 
+    /// Check that this key matches the generation, and panic if it doesn't
     fn assert_matches_generation(self, g: G);
 }
 
+// SAFETY: to_index always return self and *matches_generation only succeed if the generation is
+// filled
 unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
     type UtIndex = Self;
 
@@ -88,6 +111,8 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
     }
 }
 
+// SAFETY: to_index always return self and *matches_generation only succeed if the generation is
+// filled
 #[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex<O> {
     type UtIndex = Self;
@@ -112,6 +137,8 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex
     }
 }
 
+// SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
+// filled generation. This is only possible if the generation is filled
 unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
     type UtIndex = usize;
 
@@ -134,6 +161,8 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
     }
 }
 
+// SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
+// filled generation. This is only possible if the generation is filled
 #[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKey<UtIndex<O>, G> {
     type UtIndex = UtIndex<O>;
