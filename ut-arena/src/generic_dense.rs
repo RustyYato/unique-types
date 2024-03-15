@@ -9,8 +9,6 @@ use crate::{
     key::ArenaIndex,
 };
 
-use ut_vec::UtVecElementIndex;
-
 pub struct GenericDenseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
 {
     values: Vec<T>,
@@ -154,10 +152,12 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
         self.remove_at(index_fwd)
     }
 
+    #[inline]
     pub fn values(&self) -> &[T] {
         &self.values
     }
 
+    #[inline]
     pub fn values_mut(&mut self) -> &mut [T] {
         &mut self.values
     }
