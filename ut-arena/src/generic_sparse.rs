@@ -11,7 +11,8 @@ use crate::{
     key::ArenaIndex,
 };
 
-pub struct GenericSparseArena<T, O: ?Sized = (), G: Copy = DefaultGeneration, I: Copy = usize> {
+pub struct GenericSparseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
+{
     // this can be usize, since any smaller type won't make GenericArena any smaller
     // because we will round up to padding
     last_empty: usize,
@@ -32,13 +33,21 @@ struct FilledSlot<T, G: Copy> {
 }
 
 #[repr(C)]
-union Slot<T, G: Copy, I: Copy> {
+union Slot<T, G: Generation, I: Copy> {
     generation: G,
     filled: ManuallyDrop<FilledSlot<T, G>>,
     empty: EmptySlot<G, I>,
 }
 
-pub struct VacantSlot<'a, T, O: ?Sized = (), G: Copy = DefaultGeneration, I: Copy = usize> {
+impl<T, G: Generation, I: Copy> Drop for Slot<T, G, I> {
+    fn drop(&mut self) {
+        if core::mem::needs_drop::<T>() && self.generation().is_filled() {
+            unsafe { ManuallyDrop::drop(&mut self.filled) }
+        }
+    }
+}
+
+pub struct VacantSlot<'a, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
     last_empty: &'a mut usize,
     slot: &'a mut Slot<T, G, I>,
     owner: &'a O,
@@ -51,7 +60,7 @@ impl<T, G: Generation, I: Copy> Slot<T, G, I> {
     }
 }
 
-impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
+impl<T, O: ?Sized, G: Generation, I: Copy> VacantSlot<'_, T, O, G, I> {
     pub fn key<K: ArenaIndex<O, G>>(&self) -> K {
         // SAFETY: the slot is guaranteed to be empty, so we can just fill it and then
         // it is guaranteed to be filled, so we can call to_filled
