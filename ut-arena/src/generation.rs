@@ -3,7 +3,7 @@ use core::{fmt, hash::Hash};
 pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
     const EMPTY: Self;
 
-    type TryEmptyError;
+    type TryEmptyError: Copy;
     type Filled: Copy + Ord + Hash + core::fmt::Debug;
 
     unsafe fn fill(self) -> Self;
