@@ -4,11 +4,11 @@ use crate::{
 };
 
 pub struct DenseSlab<T> {
-    arena: GenericDenseArena<T, (), NoGeneration, usize>,
+    pub arena: GenericDenseArena<T, (), NoGeneration, usize>,
 }
 
 pub struct VacantSlot<'a, T> {
-    slot: dense::VacantSlot<'a, T, (), NoGeneration, usize>,
+    pub slot: dense::VacantSlot<'a, T, (), NoGeneration, usize>,
 }
 
 impl<T> VacantSlot<'_, T> {
