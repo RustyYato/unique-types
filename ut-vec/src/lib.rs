@@ -179,6 +179,92 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 }
 
+impl<T, O: ?Sized + UniqueToken> UtVec<T, O> {
+    /// Check if a given index is in bounds, if so return a [`UtIndex`] version of that index
+    pub fn is_in_bounds(&self, i: usize) -> Option<UtIndex<O>> {
+        self.indices().nth(i)
+    }
+
+    /// An iterator over all valid indices in this vector
+    pub fn indices(&self) -> Indices<O> {
+        Indices {
+            token: self.owner.token(),
+            start: 0,
+            end: self.len(),
+        }
+    }
+}
+
+/// An iterator over all indices in a [`UtVec`]
+pub struct Indices<O: ?Sized + UniqueToken> {
+    token: O::Token,
+    start: usize,
+    end: usize,
+}
+
+impl<O: UniqueToken + ?Sized> ExactSizeIterator for Indices<O> {}
+impl<O: UniqueToken + ?Sized> core::iter::FusedIterator for Indices<O> {}
+impl<O: UniqueToken + ?Sized> Iterator for Indices<O> {
+    type Item = UtIndex<O>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start == self.end {
+            None
+        } else {
+            let index = self.start;
+            self.start += 1;
+            Some(UtIndex {
+                token: self.token,
+                index,
+            })
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let (start, ovf) = self.start.overflowing_add(n);
+        if ovf || start >= self.end {
+            self.start = self.end;
+            None
+        } else {
+            self.next()
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.end - self.start;
+        (len, Some(len))
+    }
+
+    fn count(self) -> usize {
+        self.len()
+    }
+}
+
+impl<O: UniqueToken + ?Sized> DoubleEndedIterator for Indices<O> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start == self.end {
+            None
+        } else {
+            let index = self.end.wrapping_sub(1);
+            self.end = index;
+            Some(UtIndex {
+                token: self.token,
+                index,
+            })
+        }
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let (end, ovf) = self.end.overflowing_sub(n);
+        if ovf || self.start >= end {
+            self.start = self.end;
+            None
+        } else {
+            self.next_back()
+        }
+    }
+}
+
 impl<T, A, O> Extend<A> for UtVec<T, O>
 where
     Vec<T>: Extend<A>,
