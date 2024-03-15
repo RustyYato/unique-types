@@ -1,10 +1,10 @@
-use core::{mem::MaybeUninit, ops};
+use core::ops;
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 
 use crate::{
     dense_tracker::{self, GenericDenseTracker},
-    generation::{self, DefaultGeneration, Generation},
+    generation::{DefaultGeneration, Generation},
     internal_index::InternalIndex,
     key::ArenaIndex,
 };

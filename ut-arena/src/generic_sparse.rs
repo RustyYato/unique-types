@@ -6,7 +6,7 @@ use core::{
 use ut_vec::{UtVec, UtVecElementIndex};
 
 use crate::{
-    generation::{self, DefaultGeneration, Generation},
+    generation::{DefaultGeneration, Generation},
     internal_index::InternalIndex,
     key::ArenaIndex,
 };
