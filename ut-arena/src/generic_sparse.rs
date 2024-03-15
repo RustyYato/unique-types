@@ -3,12 +3,12 @@ use core::{
     ops,
 };
 
-use unique_types::UniqueToken;
-use ut_vec::{UtIndex, UtVec, UtVecElementIndex};
+use ut_vec::UtVec;
 
 use crate::{
     generation::{DefaultGeneration, Generation},
-    index::InternalIndex,
+    internal_index::InternalIndex,
+    key::ArenaIndex,
 };
 
 pub struct GenericSparseArena<T, O: ?Sized = (), G: Copy = DefaultGeneration, I: Copy = usize> {
@@ -16,12 +16,6 @@ pub struct GenericSparseArena<T, O: ?Sized = (), G: Copy = DefaultGeneration, I:
     // because we will round up to padding
     last_empty: usize,
     slots: ut_vec::UtVec<Slot<T, G, I>, O>,
-}
-
-#[derive(Clone, Copy)]
-pub struct ArenaKey<I, G: Generation = DefaultGeneration> {
-    index: I,
-    generation: G::Filled,
 }
 
 #[repr(C)]
@@ -146,37 +140,18 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
             None
         }
     }
-}
 
-#[cold]
-#[inline(never)]
-fn matches_generation_failed<G: Generation>(generation: G, filled: G::Filled, index: usize) -> ! {
-    struct GenerationMatchFailed<G: Generation> {
-        generation: G,
-        filled: G::Filled,
-        index: usize,
+    #[inline]
+    pub unsafe fn get_unchecked<K: ArenaIndex<O, G>>(&self, key: K) -> &T {
+        let slot = self.slots.get_unchecked(key.to_index());
+        unsafe { &slot.filled.value }
     }
 
-    impl<G: Generation> core::fmt::Display for GenerationMatchFailed<G> {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            self.generation.write_mismatch(self.filled, self.index, f)
-        }
+    #[inline]
+    pub fn get_unchecked_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> &mut T {
+        let slot = unsafe { self.slots.get_unchecked_mut(key.to_index()) };
+        unsafe { &mut slot.filled.value }
     }
-
-    panic!(
-        "{}",
-        GenerationMatchFailed {
-            generation,
-            filled,
-            index
-        }
-    )
-}
-
-#[cold]
-#[inline(never)]
-fn access_empty_slot(index: usize) -> ! {
-    panic!("Tried to access empy slot at index: {index}")
 }
 
 impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::Index<K>
@@ -198,113 +173,5 @@ impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::IndexMut<K>
         let slot = &mut self.slots[index.to_index()];
         index.assert_matches_generation(slot.generation());
         unsafe { &mut slot.filled.value }
-    }
-}
-
-pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
-    type UtIndex: UtVecElementIndex<O>;
-
-    /// # Safety
-    ///
-    /// The index must be in bounds for the Arena that
-    unsafe fn new(index: usize, owner: &O, generation: G::Filled) -> Self;
-
-    fn to_index(&self) -> Self::UtIndex;
-
-    fn matches_generation(self, g: G) -> bool;
-
-    fn assert_matches_generation(self, g: G);
-}
-
-unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
-    type UtIndex = Self;
-
-    unsafe fn new(index: usize, _owner: &O, _generation: G::Filled) -> Self {
-        index
-    }
-
-    fn to_index(&self) -> Self::UtIndex {
-        *self
-    }
-
-    fn matches_generation(self, g: G) -> bool {
-        g.is_filled()
-    }
-
-    fn assert_matches_generation(self, g: G) {
-        if g.is_empty() {
-            access_empty_slot(self)
-        }
-    }
-}
-
-unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex<O> {
-    type UtIndex = Self;
-
-    unsafe fn new(index: usize, owner: &O, _generation: G::Filled) -> Self {
-        // the caller ensures that this is a valid index into the [`UtVec`] that owns owner
-        unsafe { Self::new_unchecked(index, owner) }
-    }
-
-    fn to_index(&self) -> Self::UtIndex {
-        *self
-    }
-
-    fn matches_generation(self, g: G) -> bool {
-        g.is_filled()
-    }
-
-    fn assert_matches_generation(self, g: G) {
-        if g.is_empty() {
-            access_empty_slot(self.get())
-        }
-    }
-}
-
-unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
-    type UtIndex = usize;
-
-    unsafe fn new(index: usize, _owner: &O, generation: G::Filled) -> Self {
-        Self { index, generation }
-    }
-
-    fn to_index(&self) -> Self::UtIndex {
-        self.index
-    }
-
-    fn matches_generation(self, g: G) -> bool {
-        g.matches(self.generation)
-    }
-
-    fn assert_matches_generation(self, g: G) {
-        if !g.matches(self.generation) {
-            matches_generation_failed(g, self.generation, self.index)
-        }
-    }
-}
-
-unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKey<UtIndex<O>, G> {
-    type UtIndex = UtIndex<O>;
-
-    unsafe fn new(index: usize, owner: &O, generation: G::Filled) -> Self {
-        // SAFETY: the caller ensures that this is a valid index into the [`UtVec`] that owns owner
-        Self {
-            index: unsafe { UtIndex::new_unchecked(index, owner) },
-            generation,
-        }
-    }
-
-    fn to_index(&self) -> Self::UtIndex {
-        self.index
-    }
-
-    fn matches_generation(self, g: G) -> bool {
-        g.matches(self.generation)
-    }
-
-    fn assert_matches_generation(self, g: G) {
-        if !g.matches(self.generation) {
-            matches_generation_failed(g, self.generation, self.index.get())
-        }
     }
 }
