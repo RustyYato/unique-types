@@ -17,7 +17,7 @@
 //! [AoS](https://en.wikipedia.org/wiki/AoS_and_SoA) and you could store them as a SoA instead
 //! to improve iteration performance of some fields.
 
-use core::{marker::PhantomData, ops};
+use core::marker::PhantomData;
 
 use alloc::vec::Vec;
 
@@ -52,9 +52,9 @@ impl<G: Generation, I: InternalIndex> GenericDenseTracker<(), G, I> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Create a new [`GenericDenseTracker`] with the given owner
-    #[cfg(feature = "unique-types")]
     pub const fn wiht_owner(owner: O) -> Self {
         Self {
             index_rev: Vec::new(),
@@ -113,6 +113,16 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     #[inline]
     pub fn get<K: ArenaIndex<O, G>>(&self, key: K) -> Option<usize> {
         self.index_fwd.get(key).copied().map(I::to_usize)
+    }
+
+    /// Get the index into the array associated with the key
+    ///
+    /// # Panics
+    ///
+    /// If the key is invalid (out of bounds, or incorrect generation)
+    #[inline]
+    pub fn at<K: ArenaIndex<O, G>>(&self, key: K) -> usize {
+        self.index_fwd[key].to_usize()
     }
 
     /// Get the index into the array associated with the key without checking
@@ -233,16 +243,6 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
             index_fwd: &self.index_fwd,
             _key: PhantomData,
         }
-    }
-}
-
-impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex> ops::Index<K>
-    for GenericDenseTracker<O, G, I>
-{
-    type Output = I;
-
-    fn index(&self, index: K) -> &Self::Output {
-        &self.index_fwd[index]
     }
 }
 
