@@ -10,20 +10,17 @@ use crate::{
 };
 
 pub struct GenericDenseTracker<O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
-    index_rev: Vec<MaybeUninit<I>>,
+    index_rev: Vec<I>,
     index_fwd: GenericSparseArena<I, O, G, I>,
 }
 
 pub struct VacantSlot<'a, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
     sparse: sparse::VacantSlot<'a, I, O, G, I>,
+    index_rev: &'a mut Vec<I>,
 }
 
-struct Aliased<T>(NonNull<T>);
-unsafe impl<T: Send> Send for Aliased<T> {}
-unsafe impl<T: Sync> Sync for Aliased<T> {}
-
 impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
-    pub const unsafe fn new(owner: O) -> Self {
+    pub const fn new(owner: O) -> Self {
         Self {
             index_rev: Vec::new(),
             index_fwd: GenericSparseArena::new(owner),
@@ -36,25 +33,37 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, O, G, I> {
         self.sparse.key()
     }
 
-    pub fn insert(self, len: usize) {
+    pub fn position(&self) -> usize {
+        self.index_rev.len()
+    }
+
+    pub fn insert(self) {
+        let len = self.position();
+        self.index_rev.push(I::from_usize(self.sparse.key()));
         self.sparse.insert(I::from_usize(len))
     }
 }
 
-impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
+impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I>
+where
+    O: core::fmt::Debug,
+{
     pub fn vacant_slot(&mut self, len: usize) -> VacantSlot<'_, O, G, I> {
-        let slot = self.index_fwd.vacant_slot();
-        if self.index_rev.len() == len {
-            self.index_rev.reserve(1);
-            // MaybeUninit is always initialized, even for uninitialized bytes
-            unsafe { self.index_rev.set_len(self.index_rev.capacity()) }
-        }
-        let index_rev = unsafe { self.index_rev.get_unchecked_mut(len) };
-        *index_rev = MaybeUninit::new(I::from_usize(slot.key::<usize>()));
-
+        assert_eq!(self.index_rev.len(), len);
         VacantSlot {
             sparse: self.index_fwd.vacant_slot(),
+            index_rev: &mut self.index_rev,
         }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.index_rev.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.index_rev.is_empty()
     }
 
     #[inline]
@@ -67,43 +76,39 @@ impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
         unsafe { *self.index_fwd.get_unchecked(key) }.to_usize()
     }
 
-    fn remove_at(&mut self, len: usize, index_fwd: I) -> usize {
-        let end = len.wrapping_sub(1);
-        // we are going to swap remove index_fwd out, so we will need to update the mappings
-        // of the end of the list
-        let index_end_rev = unsafe { self.index_rev.get_unchecked(end).assume_init_read() };
-
-        // we need to update the forward mapping to show that the end is now pointing to index_fwd
-        unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
-        let index_fwd = index_fwd.to_usize();
-
-        // the end is now at index_fwd so we need to update the reverse mapping accordingly
-        unsafe { *self.index_rev.get_unchecked_mut(index_fwd) = MaybeUninit::new(index_end_rev) }
-
-        // this is to eliminate the bounds check in self.values.swap_remove
-        if index_fwd.to_usize() >= len {
+    fn remove_at(&mut self, index_fwd: I) -> usize {
+        if self.index_rev.is_empty() {
+            unsafe { core::hint::unreachable_unchecked() }
+        }
+        if index_fwd.to_usize() >= self.index_rev.len() - 1 {
             unsafe { core::hint::unreachable_unchecked() }
         }
 
-        index_fwd
+        self.index_rev.swap_remove(index_fwd.to_usize());
+        let index_end_rev = self.index_rev[index_fwd.to_usize()];
+
+        // we need to update the forward mapping to show that the end is now pointing to index_fwd
+        unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
+
+        index_fwd.to_usize()
     }
 
     #[inline]
-    pub fn try_remove<K: ArenaIndex<O, G>>(&mut self, len: usize, key: K) -> Option<usize> {
+    pub fn try_remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<usize> {
         let index_fwd = self.index_fwd.try_remove(key)?;
-        Some(self.remove_at(len, index_fwd))
+        Some(self.remove_at(index_fwd))
     }
 
     #[inline]
-    pub fn remove<K: ArenaIndex<O, G>>(&mut self, len: usize, key: K) -> usize {
+    pub fn remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> usize {
         let index_fwd = self.index_fwd.remove(key);
-        self.remove_at(len, index_fwd)
+        self.remove_at(index_fwd)
     }
 
     #[inline]
-    pub unsafe fn remove_unchecked<K: ArenaIndex<O, G>>(&mut self, len: usize, key: K) -> usize {
+    pub unsafe fn remove_unchecked<K: ArenaIndex<O, G>>(&mut self, key: K) -> usize {
         let index_fwd = unsafe { self.index_fwd.remove_unchecked(key) };
-        self.remove_at(len, index_fwd)
+        self.remove_at(index_fwd)
     }
 }
 

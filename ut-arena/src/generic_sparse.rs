@@ -26,7 +26,7 @@ impl<T: core::fmt::Debug, G: Generation + core::fmt::Debug, I: Copy + core::fmt:
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         unsafe {
             if self.generation().is_filled() {
-                self.filled.fmt(f)
+                (*self.filled).fmt(f)
             } else {
                 self.empty.fmt(f)
             }

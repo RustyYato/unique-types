@@ -1,10 +1,10 @@
 use core::fmt;
 
-pub unsafe trait Generation: Copy + Eq {
+pub unsafe trait Generation: Copy + Eq + core::fmt::Debug {
     const EMPTY: Self;
 
     type TryEmptyError;
-    type Filled: Copy;
+    type Filled: Copy + core::fmt::Debug;
 
     unsafe fn fill(self) -> Self;
 

@@ -1,11 +1,10 @@
-use core::{mem::MaybeUninit, ops, ptr::NonNull};
+use core::ops;
 
 use alloc::vec::Vec;
 
 use crate::{
     dense_tracker::{self, GenericDenseTracker},
     generation::{DefaultGeneration, Generation},
-    generic_sparse::{self as sparse, GenericSparseArena},
     internal_index::InternalIndex,
     key::ArenaIndex,
 };
@@ -25,7 +24,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     pub const fn new(owner: O) -> Self {
         Self {
             values: Vec::new(),
-            tracker: unsafe { GenericDenseTracker::new(owner) },
+            tracker: GenericDenseTracker::new(owner),
         }
     }
 }
@@ -36,18 +35,21 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
     }
 
     pub fn insert(self, value: T) {
-        let len = self.vec.len();
+        let index = self.slot.position();
 
         unsafe {
-            self.vec.as_mut_ptr().add(len).write(value);
-            self.vec.set_len(len + 1);
+            self.vec.as_mut_ptr().add(index).write(value);
+            self.vec.set_len(index + 1);
         }
 
-        self.slot.insert(len)
+        self.slot.insert()
     }
 }
 
-impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
+impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I>
+where
+    O: core::fmt::Debug,
+{
     pub fn vacant_slot(&mut self) -> VacantSlot<'_, T, O, G, I> {
         if self.values.len() == self.values.capacity() {
             self.values.reserve(1);
@@ -95,7 +97,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     }
 
     fn remove_at(&mut self, index: usize) -> T {
-        if self.values.len() >= index {
+        if index >= self.values.len() {
             unsafe { core::hint::unreachable_unchecked() }
         }
 
@@ -104,19 +106,19 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
 
     #[inline]
     pub fn try_remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<T> {
-        let index = self.tracker.try_remove(self.values.len(), key)?;
+        let index = self.tracker.try_remove(key)?;
         Some(self.remove_at(index))
     }
 
     #[inline]
     pub fn remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> T {
-        let index = self.tracker.remove(self.values.len(), key);
+        let index = self.tracker.remove(key);
         self.remove_at(index)
     }
 
     #[inline]
     pub unsafe fn remove_unchecked<K: ArenaIndex<O, G>>(&mut self, key: K) -> T {
-        let index = self.tracker.remove_unchecked(self.values.len(), key);
+        let index = self.tracker.remove_unchecked(key);
         self.remove_at(index)
     }
 
