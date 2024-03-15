@@ -41,7 +41,7 @@ fn access_empty_slot(index: usize) -> ! {
 }
 
 pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
-    type UtIndex: UtVecElementIndex<O>;
+    type UtIndex: UtVecElementIndex<O> + Copy;
 
     /// # Safety
     ///

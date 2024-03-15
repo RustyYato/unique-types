@@ -9,6 +9,8 @@ pub unsafe trait InternalIndex: Copy {
     /// x must be less or equal to than Self::MAX
     fn from_usize(x: usize) -> Self;
 
+    unsafe fn from_usize_unchecked(x: usize) -> Self;
+
     /// converts self to a usize
     fn to_usize(self) -> usize;
 }
@@ -20,6 +22,10 @@ macro_rules! prim {
             fn from_usize(x: usize) -> Self {
                 x.try_into()
                     .expect("tried to create a Arena with too many elements")
+            }
+
+            unsafe fn from_usize_unchecked(x: usize) -> Self {
+                x as Self
             }
 
             #[inline]
