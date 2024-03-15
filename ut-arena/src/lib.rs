@@ -20,7 +20,7 @@
 //! you expect a key to exist, but it has since been removed and replaced
 //! so it looks like it still exists, but it no longer does
 //!
-//! To fix this, we use the types in [`genration`] to track how many removals
+//! To fix this, we use the types in [`generation`] to track how many removals
 //! have happened, and if the number of removals doesn't match your key, then
 //! your key is invalid.
 //!
@@ -69,7 +69,7 @@
 //! However it will always guarantee that all [`ArenaKey`](key::ArenaKey)s you get after insertion are
 //! unique. Thus avoiding the ABA-problem entirely.
 //!
-//! Practically, there isn't much difference between [`g32`](genration::g32) and
+//! Practically, there isn't much difference between [`g32`](generation::g32) and
 //! [`gw32`](generation::gw32), since it is unlikely that you will ever exhaust a 32-bits for a
 //! single slot. So having the guarantee is quite nice. However for smaller bits, it is possible
 //! and quite likely that you will exhaust the bits, so pick carefully.
@@ -109,7 +109,7 @@
 //! larger than Sparse Arenas because there is a double indirection between the key and the
 //! element.
 //!
-//! Basically, dense arenas use a sparse arena to map keys -> indices in a [`Vec`], which
+//! Basically, dense arenas use a sparse arena to map keys -> indices in a [`Vec`](alloc::vec::Vec), which
 //! is a double indirection.
 //!
 //! But this is a small cost to pay for the fastest iteration speed you can ask for.

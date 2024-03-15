@@ -86,7 +86,7 @@ where
         }
     }
 
-    /// Insert a new value into a [`GenericSparseArena`]
+    /// Insert a new value into a [`GenericDenseArena`]
     pub fn insert<K: ArenaIndex<O, G>>(&mut self, value: T) -> K {
         self.insert_with(move |_| value)
     }

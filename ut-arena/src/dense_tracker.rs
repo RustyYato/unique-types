@@ -6,10 +6,11 @@
 //! This [`GenericDenseTracker`] should be associated with an array (or set or arrays).
 //!
 //! * Each time you call [`VacantSlot::insert`], you must push an element into the array(s)
-//! * Each time you call [`GenericDenseArena::remove`] (or it's variants), successfully
+//! * Each time you call [`GenericDenseTracker::remove`] (or it's variants), successfully
 //!  you must [`Vec::swap_remove`] the corresponding element out of the array(s)
 //!
-//! If you do these two things, then all indices in the [`GenericDenseTracker`] are guaranteed
+//! If you do these two things, then all indices in the
+//! [`GenericDenseTracker`](crate::generic_dense::GenericDenseArena) are guaranteed
 //! to be correct indices into you array(s).
 //!
 //! This allows you to build up your own dense arenas. For example,
