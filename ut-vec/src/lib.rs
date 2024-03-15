@@ -25,6 +25,7 @@ use alloc::{collections::TryReserveError, vec::Vec};
 use unique_types::UniqueToken;
 
 /// An append only vector
+#[derive(Debug)]
 pub struct UtVec<T, O: ?Sized = ()> {
     data: Vec<T>,
     owner: O,

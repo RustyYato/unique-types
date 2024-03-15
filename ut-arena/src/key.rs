@@ -4,7 +4,7 @@ use ut_vec::{UtIndex, UtVecElementIndex};
 use crate::generation::{DefaultGeneration, Generation};
 
 #[derive(Clone, Copy)]
-pub struct ArenaKey<I, G: Generation = DefaultGeneration> {
+pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
     index: I,
     generation: G::Filled,
 }

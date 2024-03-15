@@ -11,6 +11,7 @@ use crate::{
     key::ArenaIndex,
 };
 
+#[derive(Debug)]
 pub struct GenericSparseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
 {
     // this can be usize, since any smaller type won't make GenericArena any smaller
@@ -19,14 +20,29 @@ pub struct GenericSparseArena<T, O: ?Sized = (), G: Generation = DefaultGenerati
     slots: ut_vec::UtVec<Slot<T, G, I>, O>,
 }
 
+impl<T: core::fmt::Debug, G: Generation + core::fmt::Debug, I: Copy + core::fmt::Debug>
+    core::fmt::Debug for Slot<T, G, I>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        unsafe {
+            if self.generation().is_filled() {
+                self.filled.fmt(f)
+            } else {
+                self.empty.fmt(f)
+            }
+        }
+    }
+}
+
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct EmptySlot<G: Copy, I: Copy> {
     generation: G,
     next_empty_slot: I,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct FilledSlot<T, G: Copy> {
     generation: G,
     value: T,

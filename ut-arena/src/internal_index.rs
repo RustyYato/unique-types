@@ -3,7 +3,7 @@
 /// # Safety
 ///
 /// to_usize must give the exact usize that was passed to from_usize_unchecked
-pub unsafe trait InternalIndex: Copy {
+pub unsafe trait InternalIndex: Copy + core::fmt::Debug {
     /// # Safety
     ///
     /// x must be less or equal to than Self::MAX
@@ -25,6 +25,7 @@ macro_rules! prim {
             }
 
             unsafe fn from_usize_unchecked(x: usize) -> Self {
+                debug_assert!(Self::try_from(x).is_ok());
                 x as Self
             }
 
