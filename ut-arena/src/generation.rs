@@ -194,7 +194,7 @@ macro_rules! prim {
 
             #[inline]
             fn is_empty(self) -> bool {
-                self.0 & 0 == 0
+                self.0 & 1 == 0
             }
         }
     };
@@ -263,7 +263,7 @@ macro_rules! prim_wrapping {
 
             #[inline]
             fn is_empty(self) -> bool {
-                self.0 & 0 == 0
+                self.0 & 1 == 0
             }
         }
     };
