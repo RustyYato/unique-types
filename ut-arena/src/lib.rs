@@ -129,3 +129,7 @@ pub mod key;
 
 pub mod dense_slab;
 pub mod slab;
+
+mod seal {
+    pub trait Seal {}
+}
