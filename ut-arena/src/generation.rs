@@ -1,10 +1,10 @@
-use core::fmt;
+use core::{fmt, hash::Hash};
 
-pub unsafe trait Generation: Copy + Eq + core::fmt::Debug {
+pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
     const EMPTY: Self;
 
     type TryEmptyError;
-    type Filled: Copy + core::fmt::Debug;
+    type Filled: Copy + Ord + Hash + core::fmt::Debug;
 
     unsafe fn fill(self) -> Self;
 
@@ -32,11 +32,11 @@ pub unsafe trait Generation: Copy + Eq + core::fmt::Debug {
 type DefaultGenerationInner = gsize;
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultGeneration(DefaultGenerationInner);
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultGenerationFilled(<DefaultGenerationInner as Generation>::Filled);
 
 unsafe impl Generation for DefaultGeneration {
@@ -86,7 +86,7 @@ unsafe impl Generation for DefaultGeneration {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoGeneration(bool);
 
 unsafe impl Generation for NoGeneration {
@@ -135,11 +135,11 @@ macro_rules! prim {
     ($name:ident $name_filled:ident $inner:ident $filled_inner:ident) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name($inner);
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name_filled(core::num::$filled_inner);
 
         impl core::fmt::Debug for $name {
@@ -204,11 +204,11 @@ macro_rules! prim_wrapping {
     ($name:ident $name_filled:ident $inner:ident $filled_inner:ident) => {
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name($inner);
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name_filled(core::num::$filled_inner);
 
         impl core::fmt::Debug for $name {

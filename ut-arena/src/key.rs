@@ -7,10 +7,17 @@ use ut_vec::UtIndex;
 
 use crate::generation::{DefaultGeneration, Generation};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
     index: I,
     generation: G::Filled,
+}
+
+impl<I, G: Generation> ArenaKey<I, G> {
+    #[inline]
+    pub fn index(self) -> I {
+        self.index
+    }
 }
 
 #[cold]
