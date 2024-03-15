@@ -452,28 +452,28 @@ prim_saturating!(
 prim_wrapping!(
     /// A 8-bit wrapping generation
     gw8
-    /// The key version of [`g8`]
+    /// The key version of [`gw8`]
     FilledGw8
     u8 NonZeroU8
 );
 prim_wrapping!(
     /// A 16-bit wrapping generation
     gw16
-    /// The key version of [`g16`]
+    /// The key version of [`gw16`]
     FilledGw16
     u16 NonZeroU16
 );
 prim_wrapping!(
     /// a 32-bit wrapping generation
     gw32
-    /// The key version of [`g32`]
+    /// The key version of [`gw32`]
     FilledGw32
     u32 NonZeroU32
 );
 prim_wrapping!(
     /// 64-bit wrapping generation
     gw64
-    /// The key version of [`g64`]
+    /// The key version of [`gw64`]
     FilledGw64
     u64
     NonZeroU64
@@ -481,7 +481,7 @@ prim_wrapping!(
 prim_wrapping!(
     /// The 128-bit wrapping generation
     gw128
-    /// The key version of [`g128`]
+    /// The key version of [`gw128`]
     FilledGw128
     u128
     NonZeroU128
@@ -490,7 +490,7 @@ prim_wrapping!(
 prim_wrapping!(
     /// A pointer sized wrapping generation
     gwsize
-    /// The key version of [`gsize`]
+    /// The key version of [`gwsize`]
     FilledGwsize
     usize
     NonZeroUsize
