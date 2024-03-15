@@ -22,6 +22,7 @@ use core::{
 
 use alloc::{collections::TryReserveError, vec::Vec};
 
+#[cfg(feature = "unique-types")]
 use unique_types::UniqueToken;
 
 /// An append only vector
@@ -31,19 +32,23 @@ pub struct UtVec<T, O: ?Sized = ()> {
     owner: O,
 }
 
+#[cfg(feature = "unique-types")]
 /// An index into the [`UtVec`] that owns this index
 pub struct UtIndex<O: ?Sized + UniqueToken> {
     token: O::Token,
     index: usize,
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Copy for UtIndex<O> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Clone for UtIndex<O> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtIndex<O> {
     /// Get the underlying index
     pub const fn get(&self) -> usize {
@@ -260,6 +265,7 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<T, O: ?Sized + UniqueToken> UtVec<T, O> {
     /// Check if a given index is in bounds, if so return a [`UtIndex`] version of that index
     pub fn is_in_bounds(&self, i: usize) -> Option<UtIndex<O>> {
@@ -276,6 +282,7 @@ impl<T, O: ?Sized + UniqueToken> UtVec<T, O> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 /// An iterator over all indices in a [`UtVec`]
 pub struct Indices<O: ?Sized + UniqueToken> {
     token: O::Token,
@@ -283,8 +290,11 @@ pub struct Indices<O: ?Sized + UniqueToken> {
     end: usize,
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: UniqueToken + ?Sized> ExactSizeIterator for Indices<O> {}
+#[cfg(feature = "unique-types")]
 impl<O: UniqueToken + ?Sized> core::iter::FusedIterator for Indices<O> {}
+#[cfg(feature = "unique-types")]
 impl<O: UniqueToken + ?Sized> Iterator for Indices<O> {
     type Item = UtIndex<O>;
 
@@ -321,6 +331,7 @@ impl<O: UniqueToken + ?Sized> Iterator for Indices<O> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: UniqueToken + ?Sized> DoubleEndedIterator for Indices<O> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.start == self.end {
@@ -730,7 +741,9 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeInclusive<usize> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for UtIndex<O> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for UtIndex<O> {
     type OutputKind = Element;
 
@@ -752,6 +765,7 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for UtIndex<O> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecElementIndex<O> for UtIndex<O> {
     #[inline]
     fn get_index(&self) -> usize {
@@ -759,7 +773,9 @@ impl<O: ?Sized + UniqueToken> UtVecElementIndex<O> for UtIndex<O> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeTo<UtIndex<O>> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtIndex<O>> {
     type OutputKind = Slice;
 
@@ -781,7 +797,9 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtIndex<O>> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeToInclusive<UtIndex<O>> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeToInclusive<UtIndex<O>> {
     type OutputKind = Slice;
 
@@ -803,7 +821,9 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeToInclusive<UtIndex<O>
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeFrom<UtIndex<O>> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtIndex<O>> {
     type OutputKind = Slice;
 
@@ -825,7 +845,9 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtIndex<O>> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for ops::Range<UtIndex<O>> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtIndex<O>> {
     type OutputKind = Slice;
 
@@ -852,7 +874,9 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtIndex<O>> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeInclusive<UtIndex<O>> {}
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeInclusive<UtIndex<O>> {
     type OutputKind = Slice;
 

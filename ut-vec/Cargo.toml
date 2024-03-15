@@ -3,5 +3,9 @@ name = "ut-vec"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+
+unique-types = ["dep:unique-types"]
+
 [dependencies]
-unique-types = { path = '../unique-types' }
+unique-types = { path = '../unique-types', optional = true }
