@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-pub mod generic;
+pub mod generic_sparse;
 
 pub mod generation;
 pub mod index;
