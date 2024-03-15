@@ -89,6 +89,26 @@ impl<T> Slab<T> {
         self.len -= 1;
         unsafe { self.arena.remove_unchecked(key) }
     }
+
+    pub fn values(&self) -> sparse::Values<'_, T, NoGeneration, usize> {
+        self.arena.values()
+    }
+
+    pub fn values_mut(&mut self) -> sparse::ValuesMut<'_, T, NoGeneration, usize> {
+        self.arena.values_mut()
+    }
+
+    pub fn keys(&self) -> sparse::Keys<'_, usize, T, (), NoGeneration, usize> {
+        self.arena.keys()
+    }
+
+    pub fn iter(&self) -> sparse::Iter<'_, usize, T, (), NoGeneration, usize> {
+        self.arena.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> sparse::IterMut<'_, usize, T, (), NoGeneration, usize> {
+        self.arena.iter_mut()
+    }
 }
 
 impl<T> core::ops::Index<usize> for Slab<T> {

@@ -10,4 +10,5 @@ pub mod generation;
 pub mod internal_index;
 pub mod key;
 
+pub mod dense_slab;
 pub mod slab;
