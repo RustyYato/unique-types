@@ -1,28 +1,100 @@
+//! generations are used for two purposes, to track if a given slot is filled and to harden against
+//! the ABA-problem
+//!
+//! see [`Generation`] for details
+
 use core::{fmt, hash::Hash};
 
+/// [`Generation`] is used to track the initializatoin state and number of removals of a slot
+///
+/// Here's an example of how the lifetime of a slot can be modeled using [`Generation`]
+///
+/// * every slot starts off empty, so [`Generation::EMPTY`] is used as the generation
+/// * when you fill an empty slot, the generation is updated via [`Generation::fill`]
+///     * this always succeeds, since you should always be able to fill an empty slot
+/// * when you need to remove a value from a slot, you should call [`Generation::try_empty`]
+///     * if this succeeds, then the new generation should be used for the slot
+///     * if this fails, then the slot's generation shoud be set to [`Generation::EMPTY`] and
+///       the slot should be discarded, never to be filled again
+/// * when creating a key for a filled slot, you should call [`Generation::to_filled`]
+///     * this creates a more optimizated representation of the generation for keys
+///       for example, for `NoGeneration` this is just a `()`
+/// * you can check if a key's generation matches a slot's generation via [`Generation::matches`]
+///     * and [`Generation::write_mismatch`] writes the error message in case of these don't match
+/// * is_empty, and is_filled can be used to check if the slot for this generation is filled or
+///       empty
+///
+/// # Safety
+///
+/// Your generation should pass all these tests for all valid instances of your type
+/// that are reachable from `Self::EMPTY`, and calls to `fill` and `try_empty`
+///
+/// ```
+/// # use ut_arena::generation::Generation;
+/// fn test_generation<G: Generation>(g: G, filled: G::Filled) {
+///     assert!( G::EMPTY.is_empty() );
+///     assert!( g.is_empty() != g.is_filled() );
+///
+///     if g.is_empty() {
+///         unsafe { assert!(g.fill().is_filled()) }
+///     } else if let Ok(g) = unsafe { g.try_empty() } {
+///         assert!(g.is_empty());
+///     }
+///
+///     if g.matches(filled) {
+///         assert!(g.is_filled())
+///     }
+/// }
+/// ```
 pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
+    /// The initial generation, which is guaranteed to be empty
     const EMPTY: Self;
 
+    /// If [`Generation::try_empty`] can fail, this should be ()
+    /// otherwise this should be [`core::convert::Infallible`]
     type TryEmptyError: Copy;
+
+    /// The filled representation of the [`Generation`]
     type Filled: Copy + Ord + Hash + core::fmt::Debug;
 
+    /// Get the next generation
+    ///
+    /// # Safety
+    ///
+    /// The generation must currently be empty
     unsafe fn fill(self) -> Self;
 
+    /// Get the next generation
+    ///
+    /// May return an error if the genration has been exhausted
+    ///
+    /// # Safety
+    ///
+    /// The generation must currently be filled
     unsafe fn try_empty(self) -> Result<Self, Self::TryEmptyError>;
 
+    /// Convert a filled generation to [`Generation::Filled`]
+    ///
+    /// # Safety
+    ///
+    /// The generation must be filled
     unsafe fn to_filled(self) -> Self::Filled;
 
+    /// Check if a generation matches the filled generation
     fn matches(self, filled: Self::Filled) -> bool;
 
+    /// Writes the error of a failed `matches`
     fn write_mismatch(
         self,
         filled: Self::Filled,
-        index: usize,
+        slot_index: usize,
         f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result;
 
+    /// Check if the generation is in the empty variant
     fn is_empty(self) -> bool;
 
+    /// Check if the generation is in the filled variant
     #[inline]
     fn is_filled(self) -> bool {
         !self.is_empty()
@@ -31,14 +103,27 @@ pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
 
 type DefaultGenerationInner = gsize;
 
+/// The default generation type, currently just a thin wrapper around [`gsize`]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 pub struct DefaultGeneration(DefaultGenerationInner);
 
+/// The default generation's filled type, currently just a thin wrapper around [`FilledGsize`]'
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 pub struct DefaultGenerationFilled(<DefaultGenerationInner as Generation>::Filled);
 
+#[cfg(kani)]
+#[kani::proof]
+fn proof_default_generation() {
+    let g = kani::any::<DefaultGeneration>();
+    let f = kani::any::<DefaultGenerationFilled>();
+    test_generation(g, f);
+}
+
+/// SAFETY: defers to `gsize`
 unsafe impl Generation for DefaultGeneration {
     const EMPTY: Self = Self(DefaultGenerationInner::EMPTY);
 
@@ -47,16 +132,19 @@ unsafe impl Generation for DefaultGeneration {
 
     #[inline]
     unsafe fn fill(self) -> Self {
-        Self(self.0.fill())
+        // SAFETY:ensured by caller
+        Self(unsafe { self.0.fill() })
     }
 
     #[inline]
     unsafe fn try_empty(self) -> Result<Self, Self::TryEmptyError> {
-        self.0.try_empty().map(Self)
+        // SAFETY:ensured by caller
+        unsafe { self.0.try_empty() }.map(Self)
     }
 
     unsafe fn to_filled(self) -> Self::Filled {
-        DefaultGenerationFilled(self.0.to_filled())
+        // SAFETY:ensured by caller
+        DefaultGenerationFilled(unsafe { self.0.to_filled() })
     }
 
     #[inline]
@@ -85,10 +173,23 @@ unsafe impl Generation for DefaultGeneration {
     }
 }
 
+/// The generation type to ignore ABA issues
+///
+/// This only discriminates between filled and empty slots, and nothing more
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 pub struct NoGeneration(bool);
 
+#[cfg(kani)]
+#[kani::proof]
+fn proof_no_generation() {
+    let g = kani::any::<NoGeneration>();
+    let f = kani::any::<()>();
+    test_generation(g, f);
+}
+
+// SAFETY: see test_no_generation for passing test
 unsafe impl Generation for NoGeneration {
     const EMPTY: Self = Self(false);
 
@@ -132,15 +233,45 @@ unsafe impl Generation for NoGeneration {
 }
 
 macro_rules! prim {
-    ($name:ident $name_filled:ident $inner:ident $filled_inner:ident) => {
+    (
+        $(#[$meta_name:meta])*
+        $name:ident
+
+        $(#[$meta_filled:meta])*
+        $name_filled:ident
+
+        $inner:ident
+        $filled_inner:ident) => {
+        $(#[$meta_name])*
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[cfg_attr(kani, derive(kani::Arbitrary))]
         pub struct $name($inner);
+        $(#[$meta_filled])*
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name_filled(core::num::$filled_inner);
+
+        const _: () = {
+            #[cfg(kani)]
+            #[kani::proof]
+            fn $name() {
+                let g = kani::any::<$name>();
+                let f = kani::any::<$name_filled>();
+                test_generation(g, f);
+            }
+        };
+
+        #[cfg(kani)]
+        impl kani::Arbitrary for $name_filled {
+            fn any() -> Self {
+                let inner = kani::any::<core::num::$filled_inner>();
+                kani::assume(inner.get() & 1 == 1);
+                Self(inner)
+            }
+        }
 
         impl core::fmt::Debug for $name {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -154,6 +285,7 @@ macro_rules! prim {
             }
         }
 
+        // SAFETY: see proof above in const _: ()
         unsafe impl Generation for $name {
             const EMPTY: Self = Self(0);
 
@@ -189,7 +321,9 @@ macro_rules! prim {
 
             #[inline]
             unsafe fn to_filled(self) -> Self::Filled {
-                $name_filled(core::num::$filled_inner::new_unchecked(self.0))
+                // SAFETY: all filled generations have the least significant bit set, so mut be
+                // non-zero
+                $name_filled(unsafe { core::num::$filled_inner::new_unchecked(self.0) })
             }
 
             #[inline]
@@ -201,15 +335,45 @@ macro_rules! prim {
 }
 
 macro_rules! prim_wrapping {
-    ($name:ident $name_filled:ident $inner:ident $filled_inner:ident) => {
+    (
+        $(#[$meta_name:meta])*
+        $name:ident
+
+        $(#[$meta_filled:meta])*
+        $name_filled:ident
+
+        $inner:ident
+        $filled_inner:ident) => {
+        $(#[$meta_name])*
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[cfg_attr(kani, derive(kani::Arbitrary))]
         pub struct $name($inner);
+        $(#[$meta_filled])*
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name_filled(core::num::$filled_inner);
+
+        const _: () = {
+            #[cfg(kani)]
+            #[kani::proof]
+            fn $name() {
+                let g = kani::any::<$name>();
+                let f = kani::any::<$name_filled>();
+                test_generation(g, f);
+            }
+        };
+
+        #[cfg(kani)]
+        impl kani::Arbitrary for $name_filled {
+            fn any() -> Self {
+                let inner = kani::any::<core::num::$filled_inner>();
+                kani::assume(inner.get() & 1 == 1);
+                Self(inner)
+            }
+        }
 
         impl core::fmt::Debug for $name {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -223,6 +387,7 @@ macro_rules! prim_wrapping {
             }
         }
 
+        // SAFETY: see proof above in const _: ()
         unsafe impl Generation for $name {
             const EMPTY: Self = Self(0);
 
@@ -258,7 +423,9 @@ macro_rules! prim_wrapping {
 
             #[inline]
             unsafe fn to_filled(self) -> Self::Filled {
-                $name_filled(core::num::$filled_inner::new_unchecked(self.0))
+                // SAFETY: all filled generations have the least significant bit set, so mut be
+                // non-zero
+                $name_filled(unsafe { core::num::$filled_inner::new_unchecked(self.0) })
             }
 
             #[inline]
@@ -269,18 +436,118 @@ macro_rules! prim_wrapping {
     };
 }
 
-prim!(g8 FilledG8 u8 NonZeroU8);
-prim!(g16 FilledG16 u16 NonZeroU16);
-prim!(g32 FilledG32 u32 NonZeroU32);
-prim!(g64 FilledG64 u64 NonZeroU64);
-prim!(g128 FilledG128 u128 NonZeroU128);
+prim!(
+    /// A 8-bit saturating generation
+    g8
+    /// The key version of [`g8`]
+    FilledG8
+    u8 NonZeroU8
+);
+prim!(
+    /// A 16-bit saturating generation
+    g16
+    /// The key version of [`g16`]
+    FilledG16
+    u16 NonZeroU16
+);
+prim!(
+    /// a 32-bit saturating generation
+    g32
+    /// The key version of [`g32`]
+    FilledG32
+    u32 NonZeroU32
+);
+prim!(
+    /// 64-bit saturating generation
+    g64
+    /// The key version of [`g64`]
+    FilledG64
+    u64
+    NonZeroU64
+);
+prim!(
+    /// The 128-bit saturating generation
+    g128
+    /// The key version of [`g128`]
+    FilledG128
+    u128
+    NonZeroU128
+);
 
-prim!(gsize FilledGsize usize NonZeroUsize);
+prim!(
+    /// A pointer sized saturating generation
+    gsize
+    /// The key version of [`gsize`]
+    FilledGsize
+    usize
+    NonZeroUsize
+);
 
-prim_wrapping!(gw8  FilledGw8 u8 NonZeroU8);
-prim_wrapping!(gw16 FilledGw16 u16 NonZeroU16);
-prim_wrapping!(gw32 FilledGw32 u32 NonZeroU32);
-prim_wrapping!(gw64 FilledGw64 u64 NonZeroU64);
-prim_wrapping!(gw128 FilledGw128 u128 NonZeroU128);
+prim_wrapping!(
+    /// A 8-bit wrapping generation
+    gw8
+    /// The key version of [`g8`]
+    FilledGw8
+    u8 NonZeroU8
+);
+prim_wrapping!(
+    /// A 16-bit wrapping generation
+    gw16
+    /// The key version of [`g16`]
+    FilledGw16
+    u16 NonZeroU16
+);
+prim_wrapping!(
+    /// a 32-bit wrapping generation
+    gw32
+    /// The key version of [`g32`]
+    FilledGw32
+    u32 NonZeroU32
+);
+prim_wrapping!(
+    /// 64-bit wrapping generation
+    gw64
+    /// The key version of [`g64`]
+    FilledGw64
+    u64
+    NonZeroU64
+);
+prim_wrapping!(
+    /// The 128-bit wrapping generation
+    gw128
+    /// The key version of [`g128`]
+    FilledGw128
+    u128
+    NonZeroU128
+);
 
-prim_wrapping!(gwsize FilledGwsize usize NonZeroUsize);
+prim_wrapping!(
+    /// A pointer sized wrapping generation
+    gwsize
+    /// The key version of [`gsize`]
+    FilledGwsize
+    usize
+    NonZeroUsize
+);
+
+#[cfg(kani)]
+fn test_generation<G: Generation>(g: G, filled: G::Filled) {
+    assert!(G::EMPTY.is_empty());
+    assert!(g.is_empty() != g.is_filled());
+
+    if g.is_empty() {
+        // SAFETY: ^^^ g is empty
+        unsafe { assert!(g.fill().is_filled()) }
+    } else {
+        // SAFETY: g is currently in the filled state
+        assert!(g.matches(unsafe { g.to_filled() }));
+        // SAFETY: g is currently in the filled state
+        if let Ok(g) = unsafe { g.try_empty() } {
+            assert!(g.is_empty())
+        }
+    }
+
+    if g.matches(filled) {
+        assert!(g.is_filled())
+    }
+}
