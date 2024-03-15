@@ -7,6 +7,14 @@ name = "unique-types"
 version = "0.1.0"
 
 [[package]]
+name = "ut-arena"
+version = "0.1.0"
+dependencies = [
+ "unique-types",
+ "ut-vec",
+]
+
+[[package]]
 name = "ut-cell"
 version = "0.1.0"
 dependencies = [

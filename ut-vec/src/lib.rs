@@ -36,10 +36,27 @@ pub struct UtIndex<O: ?Sized + UniqueToken> {
     index: usize,
 }
 
+impl<O: ?Sized + UniqueToken> Copy for UtIndex<O> {}
+impl<O: ?Sized + UniqueToken> Clone for UtIndex<O> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<O: ?Sized + UniqueToken> UtIndex<O> {
     /// Get the underlying index
     pub const fn get(&self) -> usize {
         self.index
+    }
+
+    /// # Safety
+    ///
+    /// The index must be in bounds of the [`UtVec`] that is owns the owner
+    pub unsafe fn new_unchecked(index: usize, owner: &O) -> Self {
+        Self {
+            index,
+            token: owner.token(),
+        }
     }
 }
 
@@ -193,7 +210,7 @@ impl<T, O: ?Sized> UtVec<T, O> {
     /// # Safety
     ///
     /// The index must be in bounds and if it's a range, the start <= end
-    pub unsafe fn get_unchecked<I: UtVecIndex<O>>(&self, index: I) -> &I::Output<T> {
+    pub unsafe fn get_unchecked<I: UtVecIndex<O>>(&self, index: I) -> &GetOutputType<I, O, T> {
         let slice = NonNull::from(self.data.as_slice());
         // SAFETY: the caller ensures that this is safe
         let slice = unsafe { index.offset_slice(slice, &self.owner) };
@@ -207,7 +224,10 @@ impl<T, O: ?Sized> UtVec<T, O> {
     /// # Safety
     ///
     /// The index must be in bounds and if it's a range, the start <= end
-    pub unsafe fn get_unchecked_mut<I: UtVecIndex<O>>(&mut self, index: I) -> &mut I::Output<T> {
+    pub unsafe fn get_unchecked_mut<I: UtVecIndex<O>>(
+        &mut self,
+        index: I,
+    ) -> &mut GetOutputType<I, O, T> {
         let slice = NonNull::from(self.data.as_mut_slice());
         // SAFETY: the caller ensures that this is safe
         let slice = unsafe { index.offset_slice(slice, &self.owner) };
@@ -217,7 +237,7 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 
     /// see [`Vec::extend_from_slice`]
-    pub fn get<I: UtVecIndex<O>>(&self, index: I) -> Option<&I::Output<T>> {
+    pub fn get<I: UtVecIndex<O>>(&self, index: I) -> Option<&GetOutputType<I, O, T>> {
         if index.is_in_bounds(self.len(), &self.owner).is_ok() {
             // SAFETY: index.is_in_bounds checks that the index is in bounds, and ranges are well
             // ordered
@@ -228,7 +248,7 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 
     /// see [`Vec::extend_from_slice`]
-    pub fn get_mut<I: UtVecIndex<O>>(&mut self, index: I) -> Option<&mut I::Output<T>> {
+    pub fn get_mut<I: UtVecIndex<O>>(&mut self, index: I) -> Option<&mut GetOutputType<I, O, T>> {
         if index.is_in_bounds(self.len(), &self.owner).is_ok() {
             // SAFETY: index.is_in_bounds checks that the index is in bounds, and ranges are well
             // ordered
@@ -349,7 +369,7 @@ impl<T, O: ?Sized> ops::DerefMut for UtVec<T, O> {
 }
 
 impl<T, O, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
-    type Output = I::Output<T>;
+    type Output = GetOutputType<I, O, T>;
 
     fn index(&self, index: I) -> &Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
@@ -398,9 +418,10 @@ pub enum IndexError {
 }
 
 impl IndexError {
+    /// Panics with the appropriate error message
     #[cold]
     #[inline(never)]
-    fn handle(self) -> ! {
+    pub fn handle(self) -> ! {
         match self {
             IndexError::NotOwned => panic!("Index not owned by `UtVec`"),
             IndexError::NotInBounds {
@@ -420,14 +441,33 @@ impl IndexError {
     }
 }
 
+/// An output type specifier to [`UtVecIndex`]
+pub trait OutputKind {
+    /// The output type of [`UtVecIndex::offset_slice`]
+    type Output<T>: ?Sized;
+}
+
+type GetOutputType<I, O, T> = <<I as UtVecIndex<O>>::OutputKind as OutputKind>::Output<T>;
+
+/// An [`OutputKind`] where Output<T> = T
+pub struct Element;
+/// An [`OutputKind`] where Output<T> = [T]
+pub struct Slice;
+
+impl OutputKind for Element {
+    type Output<T> = T;
+}
+
+impl OutputKind for Slice {
+    type Output<T> = [T];
+}
+
 /// Any type which can be used to index into a [`UtVec`]
 ///
 /// This includes, usize, ranges over usize, [`UtIndex`], and ranges over [`UtIndex`]
 pub trait UtVecIndex<O: ?Sized>: Seal {
-    /// The output type,
-    /// will be T if the type is not a range
-    /// will be \[T\] if the type is a range
-    type Output<T>: ?Sized;
+    /// What kind of output does [`UtVecIndex::offset_slice`] return
+    type OutputKind: OutputKind;
 
     /// Check if this index is in bounds of the [`UtVec`] that owns `O`
     fn is_in_bounds(&self, len: usize, owner: &O) -> Result<(), IndexError>;
@@ -439,25 +479,47 @@ pub trait UtVecIndex<O: ?Sized>: Seal {
     /// `slice` must in a single allocated for it's entire length
     /// `is_in_bounds` must return Ok when passed the length of the slice and
     /// the owner associated with the slice
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>>;
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>>;
+}
+
+/// Any type which can be used to index into a [`UtVec`]
+///
+/// This includes, usize, ranges over usize, [`UtIndex`], and ranges over [`UtIndex`]
+pub trait UtVecElementIndex<O: ?Sized>: UtVecIndex<O> {
+    /// Indexes into the slice without checking if self is in bounds
+    ///
+    /// # Safety
+    ///
+    /// `slice` must in a single allocated for it's entire length
+    /// `is_in_bounds` must return Ok when passed the length of the slice and
+    /// the owner associated with the slice
+    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T>;
 }
 
 impl Seal for ops::RangeFull {}
 impl<O: ?Sized> UtVecIndex<O> for ops::RangeFull {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, _owner: &O) -> Result<(), IndexError> {
         Ok(())
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, _owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        _owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         slice
     }
 }
 
 impl Seal for usize {}
 impl<O: ?Sized> UtVecIndex<O> for usize {
-    type Output<T> = T;
+    type OutputKind = Element;
 
     fn is_in_bounds(&self, len: usize, _owner: &O) -> Result<(), IndexError> {
         if *self < len {
@@ -471,7 +533,11 @@ impl<O: ?Sized> UtVecIndex<O> for usize {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, _owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        _owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: is_in_bounds checks that self is in bounds of the slice length
         // and the slice is in a single allocation for it's entire, so offseting
         // somewhere inside that length if fine
@@ -479,9 +545,16 @@ impl<O: ?Sized> UtVecIndex<O> for usize {
     }
 }
 
+impl<O: ?Sized> UtVecElementIndex<O> for usize {
+    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T> {
+        // SAFETY: ensured by caller
+        unsafe { self.offset_slice(slice, owner) }
+    }
+}
+
 impl Seal for ops::RangeTo<usize> {}
 impl<O: ?Sized> UtVecIndex<O> for ops::RangeTo<usize> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, len: usize, _owner: &O) -> Result<(), IndexError> {
         if self.end <= len {
@@ -495,7 +568,11 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeTo<usize> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, _owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        _owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: the input is nonnull, so the output must be nonnull
         unsafe {
             NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
@@ -508,7 +585,7 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeTo<usize> {
 
 impl Seal for ops::RangeToInclusive<usize> {}
 impl<O: ?Sized> UtVecIndex<O> for ops::RangeToInclusive<usize> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, len: usize, _owner: &O) -> Result<(), IndexError> {
         if self.end < len {
@@ -522,7 +599,11 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeToInclusive<usize> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, _owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        _owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: the input is nonnull, so the output must be nonnull
         unsafe {
             NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
@@ -535,7 +616,7 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeToInclusive<usize> {
 
 impl Seal for ops::RangeFrom<usize> {}
 impl<O: ?Sized> UtVecIndex<O> for ops::RangeFrom<usize> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, len: usize, _owner: &O) -> Result<(), IndexError> {
         if self.start <= len {
@@ -549,7 +630,11 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeFrom<usize> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, _owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        _owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: the input is nonnull, so the output must be nonnull
         unsafe {
             NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
@@ -562,7 +647,7 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeFrom<usize> {
 
 impl Seal for ops::Range<usize> {}
 impl<O: ?Sized> UtVecIndex<O> for ops::Range<usize> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, len: usize, owner: &O) -> Result<(), IndexError> {
         if self.start > self.end {
@@ -578,7 +663,11 @@ impl<O: ?Sized> UtVecIndex<O> for ops::Range<usize> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: the input is nonnull, so the output must be nonnull
         unsafe {
             let slice = (..self.end).offset_slice(slice, owner);
@@ -589,7 +678,7 @@ impl<O: ?Sized> UtVecIndex<O> for ops::Range<usize> {
 
 impl Seal for ops::RangeInclusive<usize> {}
 impl<O: ?Sized> UtVecIndex<O> for ops::RangeInclusive<usize> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, len: usize, owner: &O) -> Result<(), IndexError> {
         if self.start() > self.end() {
@@ -605,7 +694,11 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeInclusive<usize> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: the input is nonnull, so the output must be nonnull
         unsafe {
             let slice = (..=*self.end()).offset_slice(slice, owner);
@@ -616,7 +709,7 @@ impl<O: ?Sized> UtVecIndex<O> for ops::RangeInclusive<usize> {
 
 impl<O: ?Sized + UniqueToken> Seal for UtIndex<O> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for UtIndex<O> {
-    type Output<T> = T;
+    type OutputKind = Element;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if owner.owns(&self.token) {
@@ -626,15 +719,26 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for UtIndex<O> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { self.index.offset_slice(slice, owner) }
     }
 }
 
+impl<O: ?Sized + UniqueToken> UtVecElementIndex<O> for UtIndex<O> {
+    unsafe fn get<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<T> {
+        // SAFETY: ensured by caller
+        unsafe { self.offset_slice(slice, owner) }
+    }
+}
+
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeTo<UtIndex<O>> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtIndex<O>> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if owner.owns(&self.end.token) {
@@ -644,7 +748,11 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtIndex<O>> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (..self.end.index).offset_slice(slice, owner) }
     }
@@ -652,7 +760,7 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtIndex<O>> {
 
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeToInclusive<UtIndex<O>> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeToInclusive<UtIndex<O>> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if owner.owns(&self.end.token) {
@@ -662,7 +770,11 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeToInclusive<UtIndex<O>
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (..=self.end.index).offset_slice(slice, owner) }
     }
@@ -670,7 +782,7 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeToInclusive<UtIndex<O>
 
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeFrom<UtIndex<O>> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtIndex<O>> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if owner.owns(&self.start.token) {
@@ -680,7 +792,11 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtIndex<O>> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (self.start.index..).offset_slice(slice, owner) }
     }
@@ -688,7 +804,7 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtIndex<O>> {
 
 impl<O: ?Sized + UniqueToken> Seal for ops::Range<UtIndex<O>> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtIndex<O>> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if self.start.index > self.end.index {
@@ -703,7 +819,11 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtIndex<O>> {
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (self.start.index..self.end.index).offset_slice(slice, owner) }
     }
@@ -711,7 +831,7 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtIndex<O>> {
 
 impl<O: ?Sized + UniqueToken> Seal for ops::RangeInclusive<UtIndex<O>> {}
 impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeInclusive<UtIndex<O>> {
-    type Output<T> = [T];
+    type OutputKind = Slice;
 
     fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
         if self.start().index > self.end().index {
@@ -726,7 +846,11 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeInclusive<UtIndex<O>> 
         }
     }
 
-    unsafe fn offset_slice<T>(self, slice: NonNull<[T]>, owner: &O) -> NonNull<Self::Output<T>> {
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (self.start().index..=self.end().index).offset_slice(slice, owner) }
     }
