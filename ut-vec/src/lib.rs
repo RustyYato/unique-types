@@ -66,15 +66,30 @@ impl<O: ?Sized + UniqueToken> UtIndex<O> {
     }
 }
 
-impl<T, O> UtVec<T, O> {
-    /// Create a [`UtVec`] from raw parts
+impl<T> UtVec<T> {
+    /// Create an empty [`UtVec`]
     #[inline]
-    pub const fn new(owner: O) -> Self {
+    pub const fn new() -> Self {
+        Self::from_vec(Vec::new())
+    }
+
+    /// Create a [`UtVec`] from a [`Vec`]
+    pub const fn from_vec(data: Vec<T>) -> Self {
+        Self { data, owner: () }
+    }
+}
+
+impl<T, O> UtVec<T, O> {
+    /// Create an empty [`UtVec`] with the given owner
+    #[inline]
+    #[cfg(feature = "unique-types")]
+    pub const fn from_owner(owner: O) -> Self {
         Self::from_parts(Vec::new(), owner)
     }
 
     /// Create a [`UtVec`] from raw parts
     #[inline]
+    #[cfg(feature = "unique-types")]
     pub const fn from_parts(data: Vec<T>, owner: O) -> Self {
         Self { data, owner }
     }

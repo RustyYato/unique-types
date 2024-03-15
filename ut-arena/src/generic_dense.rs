@@ -20,11 +20,21 @@ pub struct VacantSlot<'a, T, O: ?Sized = (), G: Generation = DefaultGeneration, 
     vec: &'a mut Vec<T>,
 }
 
-impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
-    pub const fn new(owner: O) -> Self {
+impl<T, G: Generation, I: InternalIndex> GenericDenseArena<T, (), G, I> {
+    pub const fn new() -> Self {
         Self {
             values: Vec::new(),
-            tracker: GenericDenseTracker::new(owner),
+            tracker: GenericDenseTracker::new(),
+        }
+    }
+}
+
+impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
+    #[cfg(feature = "unique-types")]
+    pub const fn with_owner(owner: O) -> Self {
+        Self {
+            values: Vec::new(),
+            tracker: GenericDenseTracker::with_owner(owner),
         }
     }
 }

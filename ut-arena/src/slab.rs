@@ -28,7 +28,7 @@ impl<T> Slab<T> {
     pub const fn new() -> Self {
         Self {
             len: 0,
-            arena: GenericSparseArena::new(()),
+            arena: GenericSparseArena::new(),
         }
     }
 

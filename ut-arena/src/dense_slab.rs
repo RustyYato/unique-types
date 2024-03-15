@@ -24,7 +24,7 @@ impl<T> VacantSlot<'_, T> {
 impl<T> DenseSlab<T> {
     pub const fn new() -> Self {
         Self {
-            arena: GenericDenseArena::new(()),
+            arena: GenericDenseArena::new(),
         }
     }
 

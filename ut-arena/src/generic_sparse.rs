@@ -127,8 +127,18 @@ impl<T, O: ?Sized, G: Generation, I: Copy> VacantSlot<'_, T, O, G, I> {
     }
 }
 
+impl<T, G: Generation, I: InternalIndex> GenericSparseArena<T, (), G, I> {
+    pub const fn new() -> Self {
+        Self {
+            free_list_head: 0,
+            slots: UtVec::new(),
+        }
+    }
+}
+
+#[cfg(feature = "unique-types")]
 impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
-    pub const fn new(owner: O) -> Self {
+    pub const fn with_owner(owner: O) -> Self {
         Self {
             free_list_head: 0,
             slots: UtVec::new(owner),
