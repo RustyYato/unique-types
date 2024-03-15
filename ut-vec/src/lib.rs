@@ -478,9 +478,9 @@ pub trait OutputKind {
 
 type GetOutputType<I, O, T> = <<I as UtVecIndex<O>>::OutputKind as OutputKind>::Output<T>;
 
-/// An [`OutputKind`] where Output<T> = T
+/// An [`OutputKind`] where `Output<T> = T`
 pub struct Element;
-/// An [`OutputKind`] where Output<T> = [T]
+/// An [`OutputKind`] where `Output<T> = [T]`
 pub struct Slice;
 
 impl OutputKind for Element {
