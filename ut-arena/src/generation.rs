@@ -232,6 +232,21 @@ unsafe impl Generation for NoGeneration {
     }
 }
 
+macro_rules! prim_impl {
+    (ty wrapping) => {
+        core::convert::Infallible
+    };
+    (ty saturating) => {
+        ()
+    };
+    (fn wrapping($self:ident, $Self:ident)) => {
+        Ok($Self($self.0.wrapping_add(1)))
+    };
+    (fn saturating($self:ident, $Self:ident)) => {
+        $self.0.checked_add(1).map($Self).ok_or(())
+    };
+}
+
 macro_rules! prim {
     (
         $(#[$meta_name:meta])*
@@ -241,7 +256,10 @@ macro_rules! prim {
         $name_filled:ident
 
         $inner:ident
-        $filled_inner:ident) => {
+        $filled_inner:ident
+
+        $kind:ident
+    ) => {
         $(#[$meta_name])*
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
@@ -289,7 +307,7 @@ macro_rules! prim {
         unsafe impl Generation for $name {
             const EMPTY: Self = Self(0);
 
-            type TryEmptyError = ();
+            type TryEmptyError = prim_impl!(ty $kind);
             type Filled = $name_filled;
 
             #[inline]
@@ -299,7 +317,7 @@ macro_rules! prim {
 
             #[inline]
             unsafe fn try_empty(self) -> Result<Self, Self::TryEmptyError> {
-                self.0.checked_add(1).map(Self).ok_or(())
+                prim_impl!(fn $kind(self, Self))
             }
 
             #[inline]
@@ -330,6 +348,31 @@ macro_rules! prim {
             fn is_empty(self) -> bool {
                 self.0 & 1 == 0
             }
+        }
+    };
+}
+
+macro_rules! prim_saturating {
+    (
+        $(#[$meta_name:meta])*
+        $name:ident
+
+        $(#[$meta_filled:meta])*
+        $name_filled:ident
+
+        $inner:ident
+        $filled_inner:ident
+    ) => {
+        prim! {
+            $(#[$meta_name])*
+            $name
+            $(#[$meta_filled])*
+            $name_filled
+
+            $inner
+            $filled_inner
+
+            saturating
         }
     };
 }
@@ -343,121 +386,44 @@ macro_rules! prim_wrapping {
         $name_filled:ident
 
         $inner:ident
-        $filled_inner:ident) => {
-        $(#[$meta_name])*
-        #[repr(transparent)]
-        #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        #[cfg_attr(kani, derive(kani::Arbitrary))]
-        pub struct $name($inner);
-        $(#[$meta_filled])*
-        #[repr(transparent)]
-        #[allow(non_camel_case_types)]
-        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct $name_filled(core::num::$filled_inner);
+        $filled_inner:ident
+    ) => {
+        prim! {
+            $(#[$meta_name])*
+            $name
+            $(#[$meta_filled])*
+            $name_filled
 
-        const _: () = {
-            #[cfg(kani)]
-            #[kani::proof]
-            fn $name() {
-                let g = kani::any::<$name>();
-                let f = kani::any::<$name_filled>();
-                test_generation(g, f);
-            }
-        };
+            $inner
+            $filled_inner
 
-        #[cfg(kani)]
-        impl kani::Arbitrary for $name_filled {
-            fn any() -> Self {
-                let inner = kani::any::<core::num::$filled_inner>();
-                kani::assume(inner.get() & 1 == 1);
-                Self(inner)
-            }
-        }
-
-        impl core::fmt::Debug for $name {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.0.fmt(f)
-            }
-        }
-
-        impl core::fmt::Debug for $name_filled {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.0.fmt(f)
-            }
-        }
-
-        // SAFETY: see proof above in const _: ()
-        unsafe impl Generation for $name {
-            const EMPTY: Self = Self(0);
-
-            type TryEmptyError = core::convert::Infallible;
-            type Filled = $name_filled;
-
-            #[inline]
-            unsafe fn fill(self) -> Self {
-                Self(self.0 | 1)
-            }
-
-            #[inline]
-            unsafe fn try_empty(self) -> Result<Self, Self::TryEmptyError> {
-                Ok(Self(self.0.wrapping_add(1)))
-            }
-
-            #[inline]
-            fn matches(self, filled: Self::Filled) -> bool {
-                self.0 == filled.0.get()
-            }
-
-            fn write_mismatch(
-                self,
-                filled: Self::Filled,
-                index: usize,
-                f: &mut fmt::Formatter<'_>,
-            ) -> fmt::Result {
-                write!(
-                    f,
-                    "tried to access arena with an expired key at index {index} with generation: {filled:?}, but expected generation: {self:?}"
-                )
-            }
-
-            #[inline]
-            unsafe fn to_filled(self) -> Self::Filled {
-                // SAFETY: all filled generations have the least significant bit set, so mut be
-                // non-zero
-                $name_filled(unsafe { core::num::$filled_inner::new_unchecked(self.0) })
-            }
-
-            #[inline]
-            fn is_empty(self) -> bool {
-                self.0 & 1 == 0
-            }
+            wrapping
         }
     };
 }
 
-prim!(
+prim_saturating!(
     /// A 8-bit saturating generation
     g8
     /// The key version of [`g8`]
     FilledG8
     u8 NonZeroU8
 );
-prim!(
+prim_saturating!(
     /// A 16-bit saturating generation
     g16
     /// The key version of [`g16`]
     FilledG16
     u16 NonZeroU16
 );
-prim!(
+prim_saturating!(
     /// a 32-bit saturating generation
     g32
     /// The key version of [`g32`]
     FilledG32
     u32 NonZeroU32
 );
-prim!(
+prim_saturating!(
     /// 64-bit saturating generation
     g64
     /// The key version of [`g64`]
@@ -465,7 +431,7 @@ prim!(
     u64
     NonZeroU64
 );
-prim!(
+prim_saturating!(
     /// The 128-bit saturating generation
     g128
     /// The key version of [`g128`]
@@ -474,7 +440,7 @@ prim!(
     NonZeroU128
 );
 
-prim!(
+prim_saturating!(
     /// A pointer sized saturating generation
     gsize
     /// The key version of [`gsize`]
