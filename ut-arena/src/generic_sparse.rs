@@ -1,4 +1,5 @@
 use core::{
+    marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
     ops,
 };
@@ -235,6 +236,44 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
         let index = index.get_index();
         unsafe { slot.remove(index, &mut self.free_list_head) }
     }
+
+    #[inline]
+    pub fn iter<K: ArenaIndex<O, G>>(&self) -> Iter<'_, K, T, O, G, I> {
+        Iter {
+            slots: self.slots.iter().enumerate(),
+            owner: self.slots.owner(),
+            _key: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn iter_mut<K: ArenaIndex<O, G>>(&mut self) -> IterMut<'_, K, T, O, G, I> {
+        let (slots, owner) = self.slots.as_mut_slice_and_owner();
+        IterMut {
+            slots: slots.iter_mut().enumerate(),
+            owner,
+            _key: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn keys<K: ArenaIndex<O, G>>(&self) -> Keys<'_, K, T, O, G, I> {
+        Keys { iter: self.iter() }
+    }
+
+    #[inline]
+    pub fn values(&self) -> Values<'_, T, G, I> {
+        Values {
+            slots: self.slots.iter(),
+        }
+    }
+
+    #[inline]
+    pub fn values_mut(&mut self) -> ValuesMut<'_, T, G, I> {
+        ValuesMut {
+            slots: self.slots.iter_mut(),
+        }
+    }
 }
 
 impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::Index<K>
@@ -256,5 +295,188 @@ impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::IndexMut<K>
         let slot = &mut self.slots[index.to_index()];
         index.assert_matches_generation(slot.generation());
         unsafe { &mut slot.filled.value }
+    }
+}
+
+pub struct Values<'a, T, G: Generation = DefaultGeneration, I: Copy = usize> {
+    slots: core::slice::Iter<'a, Slot<T, G, I>>,
+}
+
+pub struct ValuesMut<'a, T, G: Generation = DefaultGeneration, I: Copy = usize> {
+    slots: core::slice::IterMut<'a, Slot<T, G, I>>,
+}
+
+pub struct Iter<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+    slots: core::iter::Enumerate<core::slice::Iter<'a, Slot<T, G, I>>>,
+    owner: &'a O,
+    _key: PhantomData<fn() -> K>,
+}
+
+pub struct IterMut<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+    slots: core::iter::Enumerate<core::slice::IterMut<'a, Slot<T, G, I>>>,
+    owner: &'a O,
+    _key: PhantomData<fn() -> K>,
+}
+
+pub struct Keys<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+    iter: Iter<'a, K, T, O, G, I>,
+}
+
+impl<T, G: Generation, I: Copy> Clone for Values<'_, T, G, I> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            slots: self.slots.clone(),
+        }
+    }
+}
+
+impl<T, G: Generation, I: Copy> Clone for Iter<'_, T, G, I> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            slots: self.slots.clone(),
+            owner: self.owner,
+            _key: PhantomData,
+        }
+    }
+}
+
+impl<T, G: Generation, I: Copy> Clone for Keys<'_, T, G, I> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            iter: self.iter.clone(),
+        }
+    }
+}
+
+impl<'a, T, G: Generation, I: Copy> Iterator for Values<'a, T, G, I> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.slots.find_map(|slot| {
+            if slot.generation().is_filled() {
+                Some(unsafe { &slot.filled.value })
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for Values<'a, T, G, I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.slots.by_ref().rev().find_map(|slot| {
+            if slot.generation().is_filled() {
+                Some(unsafe { &slot.filled.value })
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, T, G: Generation, I: Copy> Iterator for ValuesMut<'a, T, G, I> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.slots.find_map(|slot| {
+            if slot.generation().is_filled() {
+                Some(unsafe { &mut slot.filled.value })
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for ValuesMut<'a, T, G, I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.slots.by_ref().rev().find_map(|slot| {
+            if slot.generation().is_filled() {
+                Some(unsafe { &mut slot.filled.value })
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Iter<'a, K, T, O, G, I> {
+    type Item = (K, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.slots.find_map(|(i, slot)| {
+            if slot.generation().is_filled() {
+                let key = unsafe { ArenaIndex::new(i, self.owner, slot.generation().to_filled()) };
+                Some((key, unsafe { &slot.filled.value }))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+    for Iter<'a, K, T, O, G, I>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.slots.by_ref().rev().find_map(|(i, slot)| {
+            if slot.generation().is_filled() {
+                let key = unsafe { ArenaIndex::new(i, self.owner, slot.generation().to_filled()) };
+                Some((key, unsafe { &slot.filled.value }))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator
+    for IterMut<'a, K, T, O, G, I>
+{
+    type Item = (K, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.slots.find_map(|(i, slot)| {
+            if slot.generation().is_filled() {
+                let key = unsafe { ArenaIndex::new(i, self.owner, slot.generation().to_filled()) };
+                Some((key, unsafe { &mut slot.filled.value }))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+    for IterMut<'a, K, T, O, G, I>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.slots.by_ref().rev().find_map(|(i, slot)| {
+            if slot.generation().is_filled() {
+                let key = unsafe { ArenaIndex::new(i, self.owner, slot.generation().to_filled()) };
+                Some((key, unsafe { &mut slot.filled.value }))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Keys<'a, K, T, O, G, I> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|(key, _)| key)
+    }
+}
+
+impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+    for Keys<'a, K, T, O, G, I>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back().map(|(key, _)| key)
     }
 }
