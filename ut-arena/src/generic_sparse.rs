@@ -333,19 +333,19 @@ pub struct ValuesMut<'a, T, G: Generation = DefaultGeneration, I: Copy = usize> 
     slots: core::slice::IterMut<'a, Slot<T, G, I>>,
 }
 
-pub struct Iter<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct Iter<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
     slots: core::iter::Enumerate<core::slice::Iter<'a, Slot<T, G, I>>>,
     owner: &'a O,
     _key: PhantomData<fn() -> K>,
 }
 
-pub struct IterMut<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct IterMut<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
     slots: core::iter::Enumerate<core::slice::IterMut<'a, Slot<T, G, I>>>,
     owner: &'a O,
     _key: PhantomData<fn() -> K>,
 }
 
-pub struct Keys<'a, K, T, O = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct Keys<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
     iter: Iter<'a, K, T, O, G, I>,
 }
 
@@ -430,7 +430,9 @@ impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for ValuesMut<'a, T, G, 
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Iter<'a, K, T, O, G, I> {
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
+    for Iter<'a, K, T, O, G, I>
+{
     type Item = (K, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -445,7 +447,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Iter<'a
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
     for Iter<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -460,7 +462,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
     for IterMut<'a, K, T, O, G, I>
 {
     type Item = (K, &'a mut T);
@@ -477,7 +479,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
     for IterMut<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -492,7 +494,9 @@ impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Keys<'a, K, T, O, G, I> {
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
+    for Keys<'a, K, T, O, G, I>
+{
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -500,7 +504,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> Iterator for Keys<'a
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
     for Keys<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
