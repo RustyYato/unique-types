@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+pub mod generic_dense;
 pub mod generic_sparse;
 
 pub mod generation;

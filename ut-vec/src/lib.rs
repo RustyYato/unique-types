@@ -368,7 +368,7 @@ impl<T, O: ?Sized> ops::DerefMut for UtVec<T, O> {
     }
 }
 
-impl<T, O, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
+impl<T, O: ?Sized, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
     type Output = GetOutputType<I, O, T>;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -380,7 +380,7 @@ impl<T, O, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
     }
 }
 
-impl<T, O, I: UtVecIndex<O>> ops::IndexMut<I> for UtVec<T, O> {
+impl<T, O: ?Sized, I: UtVecIndex<O>> ops::IndexMut<I> for UtVec<T, O> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
             Err(err) => err.handle(),

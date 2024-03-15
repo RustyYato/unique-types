@@ -163,7 +163,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     }
 }
 
-impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::Index<K>
+impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::Index<K>
     for GenericSparseArena<T, O, G, I>
 {
     type Output = T;
@@ -175,7 +175,7 @@ impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::Index<K>
     }
 }
 
-impl<K: ArenaIndex<O, G>, T, O, G: Generation, I: Copy> ops::IndexMut<K>
+impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::IndexMut<K>
     for GenericSparseArena<T, O, G, I>
 {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
