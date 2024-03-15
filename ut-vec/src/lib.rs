@@ -374,7 +374,7 @@ impl<T, O: ?Sized, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
 
     fn index(&self, index: I) -> &Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
-            Err(err) => err.handle(),
+            Err(err) => handle!(err),
             // SAFETY: is_in_bounds ensures that the index is in bounds, and ranges are well ordered
             Ok(()) => unsafe { self.get_unchecked(index) },
         }
@@ -384,7 +384,7 @@ impl<T, O: ?Sized, I: UtVecIndex<O>> ops::Index<I> for UtVec<T, O> {
 impl<T, O: ?Sized, I: UtVecIndex<O>> ops::IndexMut<I> for UtVec<T, O> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         match index.is_in_bounds(self.len(), &self.owner) {
-            Err(err) => err.handle(),
+            Err(err) => handle!(err),
             // SAFETY: is_in_bounds ensures that the index is in bounds, and ranges are well ordered
             Ok(()) => unsafe { self.get_unchecked_mut(index) },
         }
@@ -418,27 +418,55 @@ pub enum IndexError {
     },
 }
 
-impl IndexError {
-    /// Panics with the appropriate error message
-    #[cold]
-    #[inline(never)]
-    pub fn handle(self) -> ! {
-        match self {
-            IndexError::NotOwned => panic!("Index not owned by `UtVec`"),
-            IndexError::NotInBounds {
+macro_rules! handle {
+    ($err:expr) => {{
+        #[cold]
+        #[inline(never)]
+        fn not_owned() -> ! {
+            panic!("Index not owned by `UtVec`")
+        }
+
+        #[cold]
+        #[inline(never)]
+        fn not_in_bounds_exc(index: usize, len: usize) -> ! {
+            panic!("Index out of bounds (index > length), index: {index}, length: {len}")
+        }
+
+        #[cold]
+        #[inline(never)]
+        fn not_in_bounds_inc(index: usize, len: usize) -> ! {
+            panic!("Index out of bounds (index >= length), index: {index}, length: {len}")
+        }
+
+        #[cold]
+        #[inline(never)]
+        fn bad_order(start: usize, end: usize) -> ! {
+            panic!("Range bounds out of order (start > end), start: {start}, end: {end}")
+        }
+
+        match $err {
+            $crate::IndexError::NotOwned => not_owned(),
+            $crate::IndexError::NotInBounds {
                 index,
                 len,
                 is_inclusive: false,
-            } => panic!("Index out of bounds (index > length), index: {index}, length: {len}"),
-            IndexError::NotInBounds {
+            } => not_in_bounds_exc(index, len),
+            $crate::IndexError::NotInBounds {
                 index,
                 len,
                 is_inclusive: true,
-            } => panic!("Index out of bounds (index >= length), index: {index}, length: {len}"),
-            IndexError::OutOfOrder { start, end } => {
-                panic!("Range bounds out of order (start > end), start: {start}, end: {end}")
-            }
+            } => not_in_bounds_inc(index, len),
+            $crate::IndexError::OutOfOrder { start, end } => bad_order(start, end),
         }
+    }};
+}
+use handle;
+
+impl IndexError {
+    /// Panics with the appropriate error message
+    #[inline(always)]
+    pub fn handle<T>(self) -> ! {
+        handle!(self)
     }
 }
 
