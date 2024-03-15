@@ -3,6 +3,10 @@ name = "ut-arena"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+
+unique-types = ["dep:unique-types", "ut-vec/unique-types"]
+
 [dependencies]
-unique-types = { path = "../unique-types" }
+unique-types = { path = "../unique-types", optional = true }
 ut-vec = { path = "../ut-vec" }

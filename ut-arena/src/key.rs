@@ -1,5 +1,9 @@
+use ut_vec::UtVecElementIndex;
+
+#[cfg(feature = "unique-types")]
 use unique_types::UniqueToken;
-use ut_vec::{UtIndex, UtVecElementIndex};
+#[cfg(feature = "unique-types")]
+use ut_vec::UtIndex;
 
 use crate::generation::{DefaultGeneration, Generation};
 
@@ -77,6 +81,7 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
     }
 }
 
+#[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex<O> {
     type UtIndex = Self;
 
@@ -122,6 +127,7 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKey<UtIndex<O>, G> {
     type UtIndex = UtIndex<O>;
 
