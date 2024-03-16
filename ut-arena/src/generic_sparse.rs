@@ -70,17 +70,19 @@ use crate::{
 ///
 /// All of these operations are constant time, with low overhead.
 #[derive(Debug)]
-pub struct GenericSparseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
-{
+pub struct GenericSparseArena<
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     // this can be usize, since any smaller type won't make GenericArena any smaller
     // because we will round up to padding
     free_list_head: usize,
     slots: ut_vec::UtVec<Slot<T, G, I>, O>,
 }
 
-impl<T: core::fmt::Debug, G: Generation + core::fmt::Debug, I: Copy + core::fmt::Debug>
-    core::fmt::Debug for Slot<T, G, I>
-{
+impl<T: core::fmt::Debug, G: Generation, I: InternalIndex> core::fmt::Debug for Slot<T, G, I> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         // SAFETY: accessing `Slot` is safe if the generation says it is filled
         unsafe {
@@ -95,26 +97,26 @@ impl<T: core::fmt::Debug, G: Generation + core::fmt::Debug, I: Copy + core::fmt:
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-struct EmptySlot<G: Copy, I: Copy> {
+struct EmptySlot<G: Generation, I: InternalIndex> {
     generation: G,
     next_empty_slot: I,
 }
 
 #[repr(C)]
 #[derive(Debug)]
-struct FilledSlot<T, G: Copy> {
+struct FilledSlot<T, G: Generation> {
     generation: G,
     value: T,
 }
 
 #[repr(C)]
-union Slot<T, G: Generation, I: Copy> {
+union Slot<T, G: Generation, I: InternalIndex> {
     generation: G,
     filled: ManuallyDrop<FilledSlot<T, G>>,
     empty: EmptySlot<G, I>,
 }
 
-impl<T, G: Generation, I: Copy> Drop for Slot<T, G, I> {
+impl<T, G: Generation, I: InternalIndex> Drop for Slot<T, G, I> {
     fn drop(&mut self) {
         if core::mem::needs_drop::<T>() && self.generation().is_filled() {
             // SAFETY: the generation says this slot is filled
@@ -125,21 +127,25 @@ impl<T, G: Generation, I: Copy> Drop for Slot<T, G, I> {
 }
 
 /// a vacant slot into the [`GenericSparseArena`], created via [`GenericSparseArena::vacant_slot`]
-pub struct VacantSlot<'a, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct VacantSlot<
+    'a,
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     free_list_head: &'a mut usize,
     slot: &'a mut Slot<T, G, I>,
     owner: &'a O,
     next_empty_slot: usize,
 }
 
-impl<T, G: Generation, I: Copy> Slot<T, G, I> {
+impl<T, G: Generation, I: InternalIndex> Slot<T, G, I> {
     fn generation(&self) -> G {
         // SAFETY: all variants of the union have the generation at the start
         unsafe { self.generation }
     }
-}
 
-impl<T, G: Generation, I: InternalIndex> Slot<T, G, I> {
     unsafe fn remove(&mut self, index: usize, free_list_head: &mut usize) -> T {
         let generation = self.generation();
 
@@ -173,7 +179,7 @@ impl<T, G: Generation, I: InternalIndex> Slot<T, G, I> {
     }
 }
 
-impl<T, O: ?Sized, G: Generation, I: Copy> VacantSlot<'_, T, O, G, I> {
+impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
     /// Get the key that will be associated with this slot once it is filled
     pub fn key<K: ArenaIndex<O, G>>(&self) -> K {
         // SAFETY: the slot is guaranteed to be empty, so we can just fill it and then
@@ -489,7 +495,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     }
 }
 
-impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::Index<K>
+impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> ops::Index<K>
     for GenericSparseArena<T, O, G, I>
 {
     type Output = T;
@@ -505,7 +511,7 @@ impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::Index<K>
     }
 }
 
-impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::IndexMut<K>
+impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> ops::IndexMut<K>
     for GenericSparseArena<T, O, G, I>
 {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
@@ -521,19 +527,26 @@ impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> ops::IndexMut<K>
 
 /// An iterator over references of values in a [`GenericSparseArena`], created from
 /// [`GenericSparseArena::values`]
-pub struct Values<'a, T, G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct Values<'a, T, G: Generation = DefaultGeneration, I: InternalIndex = usize> {
     slots: core::slice::Iter<'a, Slot<T, G, I>>,
 }
 
 /// An iterator over mut references of values in a [`GenericSparseArena`], created from
 /// [`GenericSparseArena::values_mut`]
-pub struct ValuesMut<'a, T, G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct ValuesMut<'a, T, G: Generation = DefaultGeneration, I: InternalIndex = usize> {
     slots: core::slice::IterMut<'a, Slot<T, G, I>>,
 }
 
 /// An iterator over keys and references of values in a [`GenericSparseArena`], created from
 /// [`GenericSparseArena::values`]
-pub struct Iter<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct Iter<
+    'a,
+    K,
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     slots: core::iter::Enumerate<core::slice::Iter<'a, Slot<T, G, I>>>,
     owner: &'a O,
     _key: PhantomData<fn() -> K>,
@@ -541,7 +554,14 @@ pub struct Iter<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: 
 
 /// An iterator over keys and mutable references of values in a [`GenericSparseArena`], created from
 /// [`GenericSparseArena::values`]
-pub struct IterMut<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct IterMut<
+    'a,
+    K,
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     slots: core::iter::Enumerate<core::slice::IterMut<'a, Slot<T, G, I>>>,
     owner: &'a O,
     _key: PhantomData<fn() -> K>,
@@ -549,11 +569,18 @@ pub struct IterMut<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, 
 
 /// An iterator over keys in a [`GenericSparseArena`], created from
 /// [`GenericSparseArena::values`]
-pub struct Keys<'a, K, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct Keys<
+    'a,
+    K,
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     iter: Iter<'a, K, T, O, G, I>,
 }
 
-impl<T, G: Generation, I: Copy> Clone for Values<'_, T, G, I> {
+impl<T, G: Generation, I: InternalIndex> Clone for Values<'_, T, G, I> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -562,7 +589,7 @@ impl<T, G: Generation, I: Copy> Clone for Values<'_, T, G, I> {
     }
 }
 
-impl<T, G: Generation, I: Copy> Clone for Iter<'_, T, G, I> {
+impl<T, G: Generation, I: InternalIndex> Clone for Iter<'_, T, G, I> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -573,7 +600,7 @@ impl<T, G: Generation, I: Copy> Clone for Iter<'_, T, G, I> {
     }
 }
 
-impl<T, G: Generation, I: Copy> Clone for Keys<'_, T, G, I> {
+impl<T, G: Generation, I: InternalIndex> Clone for Keys<'_, T, G, I> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -582,7 +609,7 @@ impl<T, G: Generation, I: Copy> Clone for Keys<'_, T, G, I> {
     }
 }
 
-impl<'a, T, G: Generation, I: Copy> Iterator for Values<'a, T, G, I> {
+impl<'a, T, G: Generation, I: InternalIndex> Iterator for Values<'a, T, G, I> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -597,7 +624,7 @@ impl<'a, T, G: Generation, I: Copy> Iterator for Values<'a, T, G, I> {
     }
 }
 
-impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for Values<'a, T, G, I> {
+impl<'a, T, G: Generation, I: InternalIndex> DoubleEndedIterator for Values<'a, T, G, I> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.slots.by_ref().rev().find_map(|slot| {
             if slot.generation().is_filled() {
@@ -610,7 +637,7 @@ impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for Values<'a, T, G, I> 
     }
 }
 
-impl<'a, T, G: Generation, I: Copy> Iterator for ValuesMut<'a, T, G, I> {
+impl<'a, T, G: Generation, I: InternalIndex> Iterator for ValuesMut<'a, T, G, I> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -625,7 +652,7 @@ impl<'a, T, G: Generation, I: Copy> Iterator for ValuesMut<'a, T, G, I> {
     }
 }
 
-impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for ValuesMut<'a, T, G, I> {
+impl<'a, T, G: Generation, I: InternalIndex> DoubleEndedIterator for ValuesMut<'a, T, G, I> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.slots.by_ref().rev().find_map(|slot| {
             if slot.generation().is_filled() {
@@ -638,7 +665,7 @@ impl<'a, T, G: Generation, I: Copy> DoubleEndedIterator for ValuesMut<'a, T, G, 
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> Iterator
     for Iter<'a, K, T, O, G, I>
 {
     type Item = (K, &'a T);
@@ -658,7 +685,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> DoubleEndedIterator
     for Iter<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -676,7 +703,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedI
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> Iterator
     for IterMut<'a, K, T, O, G, I>
 {
     type Item = (K, &'a mut T);
@@ -696,7 +723,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> DoubleEndedIterator
     for IterMut<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -714,7 +741,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedI
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> Iterator
     for Keys<'a, K, T, O, G, I>
 {
     type Item = K;
@@ -724,7 +751,7 @@ impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> Iterator
     }
 }
 
-impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: Copy> DoubleEndedIterator
+impl<'a, K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> DoubleEndedIterator
     for Keys<'a, K, T, O, G, I>
 {
     fn next_back(&mut self) -> Option<Self::Item> {

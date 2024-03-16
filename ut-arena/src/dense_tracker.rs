@@ -32,13 +32,22 @@ use crate::{
 /// A dense tracker keeps track of which keys point to which indices
 ///
 /// This structure should be paired with an array of elements that store the actual data
-pub struct GenericDenseTracker<O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct GenericDenseTracker<
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     index_rev: Vec<I>,
     index_fwd: GenericSparseArena<I, O, G, I>,
 }
 
 /// A vacant slot in a [`GenericDenseTracker`], created by [`GenericDenseTracker::vacant_slot`]
-pub struct VacantSlot<'a, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct VacantSlot<
+    'a,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     sparse: sparse::VacantSlot<'a, I, O, G, I>,
     index_rev: &'a mut Vec<I>,
 }

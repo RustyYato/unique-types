@@ -16,14 +16,24 @@ use crate::{
 /// [`GenericDenseArena`] is the canonical implementation of how to use [`GenericDenseTracker`]
 ///
 /// It pairs a [`GenericDenseTracker`] with a [`Vec<T>`]
-pub struct GenericDenseArena<T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize>
-{
+pub struct GenericDenseArena<
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     values: Vec<T>,
     tracker: GenericDenseTracker<O, G, I>,
 }
 
 /// A vacant slot into a [`GenericDenseArena`]
-pub struct VacantSlot<'a, T, O: ?Sized = (), G: Generation = DefaultGeneration, I: Copy = usize> {
+pub struct VacantSlot<
+    'a,
+    T,
+    O: ?Sized = (),
+    G: Generation = DefaultGeneration,
+    I: InternalIndex = usize,
+> {
     slot: dense_tracker::VacantSlot<'a, O, G, I>,
     vec: &'a mut Vec<T>,
 }
