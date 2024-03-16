@@ -15,7 +15,7 @@ use crate::generation::{DefaultGeneration, Generation};
 ///
 /// The generation is a snapshot of the generation of the slot's genration
 /// If the slot is removed, then this key will become invalidated.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
     index: I,
     generation: G::Filled,

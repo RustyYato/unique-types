@@ -180,22 +180,26 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
 
     fn remove_at(&mut self, index_fwd: I) -> usize {
         if self.index_rev.is_empty() {
+            debug_assert!(false);
             // SAFETY: all callers ensure that the arena isn't empty
             unsafe { core::hint::unreachable_unchecked() }
         }
-        if index_fwd.to_usize() >= self.index_rev.len() - 1 {
+        if index_fwd.to_usize() >= self.index_rev.len() {
+            debug_assert!(false, "{index_fwd:?} >= {}", self.index_rev.len());
             // SAFETY: all callers ensure that the index was obtained from self.index_fwd
             // which only contains valid indices
             unsafe { core::hint::unreachable_unchecked() }
         }
 
         self.index_rev.swap_remove(index_fwd.to_usize());
-        let index_end_rev = self.index_rev[index_fwd.to_usize()];
 
-        // we need to update the forward mapping to show that the end is now pointing to index_fwd
-        // SAFETY: index_end_rev was obtained from self.index_rev, which only contains
-        // valid keys into self.index_fwd
-        unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
+        // If we are removing the end of the list, then we shouldn't do any more updates
+        if let Some(&index_end_rev) = self.index_rev.get(index_fwd.to_usize()) {
+            // we need to update the forward mapping to show that the end is now pointing to index_fwd
+            // SAFETY: index_end_rev was obtained from self.index_rev, which only contains
+            // valid keys into self.index_fwd
+            unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
+        }
 
         index_fwd.to_usize()
     }
