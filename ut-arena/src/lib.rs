@@ -127,9 +127,7 @@ pub mod generation;
 pub mod internal_index;
 pub mod key;
 
-#[allow(warnings)]
 pub mod dense_slab;
-#[allow(warnings)]
 pub mod slab;
 
 mod seal {

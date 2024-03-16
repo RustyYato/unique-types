@@ -1,97 +1,160 @@
+//! This is an extenstion of the `slab` crate which is based off of
+//! [`GenericDenseArena`]
+
 use crate::{
     generation::NoGeneration,
     generic_dense::{self as dense, GenericDenseArena},
 };
 
+/// see [`GenericDenseArena`]
+///
+/// [`DenseSlab`] is instanciated as `GenericDenseArena<T, (), NoGeneration, usize>` and
+/// has an extra length field for compatiblity with the `slab` crate
 pub struct DenseSlab<T> {
+    /// The underlying generic arena type
     pub arena: GenericDenseArena<T, (), NoGeneration, usize>,
 }
 
+/// a vacant slot into the [`DenseSlab`], created via [`DenseSlab::vacant_slot`]
 pub struct VacantSlot<'a, T> {
+    /// The underlying generic vacant slot type
     pub slot: dense::VacantSlot<'a, T, (), NoGeneration, usize>,
 }
 
 impl<T> VacantSlot<'_, T> {
+    /// Get the key that will be associated with this slot once it is filled
     pub fn key(&self) -> usize {
         self.slot.key()
     }
 
+    /// Insert an element into this slot
     pub fn insert(self, value: T) {
         self.slot.insert(value);
     }
 }
 
 impl<T> DenseSlab<T> {
+    /// Create a new [`DenseSlab`]
     pub const fn new() -> Self {
         Self {
             arena: GenericDenseArena::new(),
         }
     }
 
+    /// Get the number of elements in the [`DenseSlab`]
     pub fn len(&self) -> usize {
         self.arena.tracker().len()
     }
 
+    /// Returns true if there are no elements in the [`DenseSlab`]
     pub fn is_empty(&self) -> bool {
         self.arena.tracker().is_empty()
     }
 
+    /// Insert a new value into a [`DenseSlab`]
     pub fn insert(&mut self, value: T) -> usize {
         self.arena.insert(value)
     }
 
+    /// Insert a new value that depends on the key into a [`DenseSlab`]
     pub fn insert_with(&mut self, value: impl FnOnce(usize) -> T) -> usize {
         self.arena.insert_with(value)
     }
 
+    /// Access a vacant slot in the arena
     pub fn vacant_slot(&mut self) -> VacantSlot<'_, T> {
         VacantSlot {
             slot: self.arena.vacant_slot(),
         }
     }
 
+    /// Get a reference to the value associated with the key
+    ///
+    /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
     pub fn get(&self, key: usize) -> Option<&T> {
         self.arena.get(key)
     }
 
+    /// Get a mutable reference to the value associated with the key
+    ///
+    /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
     pub fn get_mut(&mut self, key: usize) -> Option<&mut T> {
         self.arena.get_mut(key)
     }
 
+    /// Get a reference to the value associated with the key
+    ///
+    /// # Safety
+    ///
+    /// The key must be in bounds and the slot must be filled
+    ///
+    /// i.e. [`DenseSlab::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked(&self, key: usize) -> &T {
+        // SAFETY: the caller ensures that this is safe
         unsafe { self.arena.get_unchecked(key) }
     }
 
+    /// Get a mutable reference to the value associated with the key
+    ///
+    /// # Safety
+    ///
+    /// The key must be in bounds and the slot must be filled
+    ///
+    /// i.e. [`DenseSlab::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked_mut(&mut self, key: usize) -> &mut T {
-        self.arena.get_unchecked_mut(key)
+        // SAFETY: the caller ensures that this is safe
+        unsafe { self.arena.get_unchecked_mut(key) }
     }
 
+    /// Try to remove the element associated with the key
+    ///
+    /// Returns None if the key is invalid or out of bounds
     pub fn try_remove(&mut self, key: usize) -> Option<T> {
         self.arena.try_remove(key)
     }
 
+    /// Try to remove the element associated with the key
+    ///
+    /// # Panics
+    ///
+    /// if the key is invalid or out of bounds
     pub fn remove(&mut self, key: usize) -> T {
         self.arena.remove(key)
     }
 
+    /// Remove the element associated with the key without checking
+    /// if the key is invalid or out of bounds
+    ///
+    /// # Safety
+    ///
+    /// They key must be in bounds, and point to a filled slot
     pub unsafe fn remove_unchecked(&mut self, key: usize) -> T {
+        // SAFETY: the caller ensures that the key is in bounds and points to a filled slot
         unsafe { self.arena.remove_unchecked(key) }
     }
 
+    /// An unordered list of values in the slab
     pub fn values(&self) -> &[T] {
         self.arena.values()
     }
 
+    /// An mutable unordered list of values in the slab
     pub fn values_mut(&mut self) -> &mut [T] {
         self.arena.values_mut()
     }
 
+    /// An iterator over all the keys in the slab
     pub fn keys(&self) -> Keys<'_> {
         Keys {
             keys: self.arena.tracker().keys(),
         }
     }
 
+    /// The mutable slice of values in this [`DenseSlab`]
+    /// and the [`GenericDenseTracker`](crate::dense_tracker::GenericDenseTracker)
+    /// that this [`DenseSlab`] uses
+    ///
+    /// This method is to work around limitations in Rust's borrow checker
     pub fn keys_and_values_mut(&mut self) -> (Keys<'_>, &mut [T]) {
         let (values, tracker) = self.arena.values_mut_and_tracker();
         (
@@ -117,6 +180,7 @@ impl<T> core::ops::IndexMut<usize> for DenseSlab<T> {
     }
 }
 
+/// An iterator over the keys in a [`DenseSlab`]
 pub struct Keys<'a> {
     keys: crate::dense_tracker::Keys<'a, usize, (), NoGeneration, usize>,
 }
