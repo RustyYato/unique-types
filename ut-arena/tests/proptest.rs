@@ -97,7 +97,7 @@ fn test_arena<A: Arena>() {
             0 => {
                 let x = rng.gen();
                 let key = arena.insert(x);
-                println!("insert {x:?} -> {key:?}");
+                // println!("insert {x:?} -> {key:?}");
                 assert!(!map.contains_key(&key));
                 map.insert(key, x);
             }
@@ -105,7 +105,7 @@ fn test_arena<A: Arena>() {
                 let Some((&key, &val)) = map.iter().choose(&mut rng) else {
                     continue;
                 };
-                println!("access {key:?} => {val:?}");
+                // println!("access {key:?} => {val:?}");
 
                 assert_eq!(arena[key], val);
             }
@@ -115,7 +115,7 @@ fn test_arena<A: Arena>() {
                 };
 
                 let new_val = rng.gen();
-                println!("mutate {key:?} => {val:?} => {new_val:?}");
+                // println!("mutate {key:?} => {val:?} => {new_val:?}");
 
                 assert_eq!(arena[key], *val);
                 *val = new_val;
@@ -126,7 +126,7 @@ fn test_arena<A: Arena>() {
                     continue;
                 };
                 map.remove(&key);
-                println!("remove {key:?} => {val:?}");
+                // println!("remove {key:?} => {val:?}");
 
                 assert_eq!(arena.remove(key), val);
                 dead_keys.push(key);
@@ -135,7 +135,7 @@ fn test_arena<A: Arena>() {
                 let Some(&key) = dead_keys.as_slice().choose(&mut rng) else {
                     continue;
                 };
-                println!("test dead {key:?}");
+                // println!("test dead {key:?}");
 
                 assert!(arena.get(key).is_none());
                 assert!(arena.get_mut(key).is_none());
