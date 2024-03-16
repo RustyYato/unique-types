@@ -234,8 +234,13 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     pub const fn with_owner(owner: O) -> Self {
         Self {
             free_list_head: 0,
-            slots: UtVec::new(owner),
+            slots: UtVec::from_owner(owner),
         }
+    }
+
+    /// Get the [`UniqueToken`] for this type
+    pub fn owner(&self) -> &O {
+        self.slots.owner()
     }
 }
 
@@ -275,7 +280,24 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     /// Insert a new value into a [`GenericSparseArena`]
     #[inline]
     pub fn insert<K: ArenaIndex<O, G>>(&mut self, value: T) -> K {
-        self.insert_with(move |_| value)
+        if self.free_list_head == self.slots.len() {
+            self.slots.push(Slot {
+                filled: ManuallyDrop::new(FilledSlot {
+                    // SAFETY: G::EMPTY is guaranteed to be empty, so we can fill it
+                    generation: unsafe { G::EMPTY.fill() },
+                    value,
+                }),
+            });
+
+            let index = self.free_list_head;
+            self.free_list_head += 1;
+
+            // SAFETY: G::EMPTY is guaranteed to be empty, so we can fill it
+            // and self.free_list_head is guaranteed to be a valid index
+            unsafe { K::new(index, self.slots.owner(), G::EMPTY.fill().to_filled()) }
+        } else {
+            self.insert_with(move |_| value)
+        }
     }
 
     /// Insert a new value that depends on the key into a [`GenericSparseArena`]

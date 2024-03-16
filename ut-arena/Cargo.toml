@@ -5,6 +5,8 @@ edition = "2021"
 
 [features]
 
+default = ["unique-types"]
+
 unique-types = ["dep:unique-types", "ut-vec/unique-types"]
 
 [dependencies]
@@ -15,3 +17,12 @@ ut-vec = { path = "../ut-vec" }
 rand = "0.8"
 scopeguard = "1"
 rustc-hash = "1"
+
+criterion = "0.5"
+
+slab = "0.4"
+slotmap = "1"
+
+[[bench]]
+name = "workloads"
+harness = false

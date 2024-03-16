@@ -51,6 +51,7 @@ impl<O: ?Sized + UniqueToken> Clone for UtIndex<O> {
 #[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtIndex<O> {
     /// Get the underlying index
+    #[inline]
     pub const fn get(&self) -> usize {
         self.index
     }
@@ -58,6 +59,7 @@ impl<O: ?Sized + UniqueToken> UtIndex<O> {
     /// # Safety
     ///
     /// The index must be in bounds of the [`UtVec`] that is owns the owner
+    #[inline]
     pub unsafe fn new_unchecked(index: usize, owner: &O) -> Self {
         Self {
             index,
