@@ -10,3 +10,7 @@ unique-types = ["dep:unique-types", "ut-vec/unique-types"]
 [dependencies]
 unique-types = { path = "../unique-types", optional = true }
 ut-vec = { path = "../ut-vec" }
+
+[dev-dependencies]
+rand = "0.8"
+scopeguard = "1"
