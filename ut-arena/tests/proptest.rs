@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::{Index, IndexMut},
-};
+use std::ops::IndexMut;
 
 use rand::{
     rngs::StdRng,
