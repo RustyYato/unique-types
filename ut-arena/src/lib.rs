@@ -1,5 +1,5 @@
 #![no_std]
-#![warn(
+#![forbid(
     clippy::missing_safety_doc,
     clippy::undocumented_unsafe_blocks,
     unsafe_op_in_unsafe_fn,
