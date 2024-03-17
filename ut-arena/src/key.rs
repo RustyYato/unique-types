@@ -111,14 +111,14 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for usize {
     }
 }
 
+#[cfg(feature = "unique-types")]
 // SAFETY: to_index always return self and *matches_generation only succeed if the generation is
 // filled
-#[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex<O> {
     type UtIndex = Self;
 
     unsafe fn new(index: usize, owner: &O, _generation: G::Filled) -> Self {
-        // the caller ensures that this is a valid index into the [`UtVec`] that owns owner
+        // SAFETY: the caller ensures that this is a valid index into the [`UtVec`] that owns owner
         unsafe { Self::new_unchecked(index, owner) }
     }
 
@@ -161,15 +161,15 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 // SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
 // filled generation. This is only possible if the generation is filled
-#[cfg(feature = "unique-types")]
 unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKey<UtIndex<O>, G> {
     type UtIndex = UtIndex<O>;
 
     unsafe fn new(index: usize, owner: &O, generation: G::Filled) -> Self {
-        // SAFETY: the caller ensures that this is a valid index into the [`UtVec`] that owns owner
         Self {
+            // SAFETY: the caller ensures that this is a valid index into the [`UtVec`] that owns owner
             index: unsafe { UtIndex::new_unchecked(index, owner) },
             generation,
         }
