@@ -15,10 +15,16 @@ use crate::generation::{DefaultGeneration, Generation};
 ///
 /// The generation is a snapshot of the generation of the slot's genration
 /// If the slot is removed, then this key will become invalidated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
     index: I,
     generation: G::Filled,
+}
+
+impl<I: core::hash::Hash, G: Generation> core::hash::Hash for ArenaKey<I, G> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        crate::key_hash::hash(&self.index, self.generation, state)
+    }
 }
 
 impl<I, G: Generation> ArenaKey<I, G> {
@@ -133,6 +139,35 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex
     fn assert_matches_generation(self, g: G) {
         if g.is_empty() {
             access_empty_slot(self.get())
+        }
+    }
+}
+
+// SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
+// filled generation. This is only possible if the generation is filled
+unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<u32, G> {
+    type UtIndex = usize;
+
+    unsafe fn new(index: usize, _owner: &O, generation: G::Filled) -> Self {
+        Self {
+            index: index
+                .try_into()
+                .expect("Tried to push too many elements into Arena"),
+            generation,
+        }
+    }
+
+    fn to_index(&self) -> Self::UtIndex {
+        self.index as usize
+    }
+
+    fn matches_generation(self, g: G) -> bool {
+        g.matches(self.generation)
+    }
+
+    fn assert_matches_generation(self, g: G) {
+        if !g.matches(self.generation) {
+            matches_generation_failed(g, self.generation, self.index as usize)
         }
     }
 }

@@ -130,6 +130,8 @@ pub mod key;
 pub mod dense_slab;
 pub mod slab;
 
+mod key_hash;
+
 mod seal {
     pub trait Seal {}
 }
