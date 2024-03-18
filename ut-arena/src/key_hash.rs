@@ -18,7 +18,6 @@ fn extract<A: Hash>(a: A) -> Option<u32> {
     let mut hasher = ExtractOneHasherU32 { value: 0, count: 0 };
 
     a.hash(&mut hasher);
-    assert_eq!(hasher.count, 1);
 
     if hasher.count == 1 {
         Some(hasher.value)
