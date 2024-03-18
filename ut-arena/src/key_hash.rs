@@ -1,6 +1,9 @@
 use core::hash::{Hash, Hasher};
 
 pub fn hash<A: Hash + Copy, B: Hash + Copy, S: Hasher>(a: A, b: B, state: &mut S) {
+    // If both index and generation are smaller than 64-bits in total
+    // then just pack them into a u64 and hash that since that is likely to be
+    // cheaper even on simple hash functions.
     if let Some((a, b)) = extract(a).zip(extract(b)) {
         state.write_u64((b as u64) << 32 | (a as u64));
         return;
