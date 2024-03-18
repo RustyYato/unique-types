@@ -218,7 +218,7 @@ where
 
     /// The [`GenericDenseTracker`] that this [`GenericDenseArena`] uses
     #[inline]
-    pub fn tracker(&self) -> &GenericDenseTracker<O, G, I> {
+    pub const fn tracker(&self) -> &GenericDenseTracker<O, G, I> {
         &self.tracker
     }
 

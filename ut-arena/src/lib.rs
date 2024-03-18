@@ -130,6 +130,9 @@ pub mod key;
 pub mod dense_slab;
 pub mod slab;
 
+pub mod dense_slotmap;
+pub mod slotmap;
+
 mod key_hash;
 
 mod seal {
