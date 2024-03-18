@@ -316,6 +316,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     pub fn get<K: ArenaIndex<O, G>>(&self, key: K) -> Option<&T> {
         let slot = self.slots.get(key.to_index())?;
         if key.matches_generation(slot.generation()) {
+            debug_assert!(slot.generation().is_filled());
             // SAFETY: if the slot's generation matches the key's generation
             // then it must be filled. Since keys only hold filled generations
             Some(unsafe { &slot.filled.value })
@@ -331,6 +332,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     pub fn get_mut<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<&mut T> {
         let slot = self.slots.get_mut(key.to_index())?;
         if key.matches_generation(slot.generation()) {
+            debug_assert!(slot.generation().is_filled());
             // SAFETY: if the slot's generation matches the key's generation
             // then it must be filled. Since keys only hold filled generations
             Some(unsafe { &mut slot.filled.value })
@@ -351,6 +353,9 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         // SAFETY: the caller ensures that the key is in bounds
         let slot = unsafe { self.slots.get_unchecked(key.to_index()) };
 
+        debug_assert!(slot.generation().is_filled());
+        debug_assert!(key.matches_generation(slot.generation()));
+
         // SAFETY: The caller ensures that the slot's generation matches
         // the key's generation
         // if the slot's generation matches the key's generation
@@ -370,6 +375,9 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         // SAFETY: the caller ensures that the key is in bounds
         let slot = unsafe { self.slots.get_unchecked_mut(key.to_index()) };
 
+        debug_assert!(slot.generation().is_filled());
+        debug_assert!(key.matches_generation(slot.generation()));
+
         // SAFETY: The caller ensures that the slot's generation matches
         // the key's generation
         // if the slot's generation matches the key's generation
@@ -384,6 +392,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     pub fn try_key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> Option<K> {
         let slot = self.slots.get(index)?;
         if slot.generation().is_filled() {
+            debug_assert!(slot.generation().is_filled());
             // SAFETY: self.get ensures that the index is in bounds
             // and we have checked that the genration is filled
             Some(unsafe { K::new(index, self.slots.owner(), slot.generation().to_filled()) })
@@ -417,6 +426,8 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
     pub unsafe fn key_of_unchecked<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
         // SAFETY: the caller ensures that the index is in bounds
         let slot = unsafe { self.slots.get_unchecked(index) };
+        debug_assert!(slot.generation().is_filled());
+
         // SAFETY: the caller ensures that the genration is filled
         unsafe { K::new(index, self.slots.owner(), slot.generation().to_filled()) }
     }
@@ -430,6 +441,8 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         let slot = self.slots.get_mut(index)?;
         let index = index.get_index();
         if key.matches_generation(slot.generation()) {
+            debug_assert!(slot.generation().is_filled());
+
             // SAFETY: self.get ensures that the index is in bounds
             // we have checked that the genration is filled
             // and free_list_head always points to a valid empty index
@@ -450,6 +463,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         let slot = &mut self.slots[index];
         let index = index.get_index();
         key.assert_matches_generation(slot.generation());
+        debug_assert!(slot.generation().is_filled());
 
         // SAFETY: self.get ensures that the index is in bounds
         // we have checked that the genration is filled
@@ -468,6 +482,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         let index = key.to_index();
         // SAFETY: the caller ensures that the index is in bounds
         let slot = unsafe { self.slots.get_unchecked_mut(index) };
+        debug_assert!(slot.generation().is_filled());
         let index = index.get_index();
         // SAFETY: the caller ensures that the slot is filled
         unsafe { slot.remove(index, &mut self.free_list_head) }
@@ -525,6 +540,7 @@ impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> ops::In
     fn index(&self, index: K) -> &Self::Output {
         let slot = &self.slots[index.to_index()];
         index.assert_matches_generation(slot.generation());
+        debug_assert!(slot.generation().is_filled());
         // SAFETY: The caller ensures that the slot's generation matches
         // the key's generation
         // if the slot's generation matches the key's generation
@@ -539,6 +555,7 @@ impl<K: ArenaIndex<O, G>, T, O: ?Sized, G: Generation, I: InternalIndex> ops::In
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         let slot = &mut self.slots[index.to_index()];
         index.assert_matches_generation(slot.generation());
+        debug_assert!(slot.generation().is_filled());
         // SAFETY: The caller ensures that the slot's generation matches
         // the key's generation
         // if the slot's generation matches the key's generation

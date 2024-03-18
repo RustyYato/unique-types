@@ -234,6 +234,8 @@ impl<T, O: ?Sized> UtVec<T, O> {
     ///
     /// The index must be in bounds and if it's a range, the start <= end
     pub unsafe fn get_unchecked<I: UtVecIndex<O>>(&self, index: I) -> &GetOutputType<I, O, T> {
+        debug_assert!(index.is_in_bounds(self.len(), self.owner()).is_ok());
+
         let slice = NonNull::from(self.data.as_slice());
         // SAFETY: the caller ensures that this is safe
         let slice = unsafe { index.offset_slice(slice, &self.owner) };
@@ -251,6 +253,8 @@ impl<T, O: ?Sized> UtVec<T, O> {
         &mut self,
         index: I,
     ) -> &mut GetOutputType<I, O, T> {
+        debug_assert!(index.is_in_bounds(self.len(), self.owner()).is_ok());
+
         let slice = NonNull::from(self.data.as_mut_slice());
         // SAFETY: the caller ensures that this is safe
         let slice = unsafe { index.offset_slice(slice, &self.owner) };
