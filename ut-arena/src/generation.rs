@@ -101,9 +101,9 @@ pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
     }
 }
 
-type DefaultGenerationInner = gsize;
+type DefaultGenerationInner = g32;
 
-/// The default generation type, currently just a thin wrapper around [`gsize`]
+/// The default generation type, currently just a thin wrapper around [`g32`]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(kani, derive(kani::Arbitrary))]

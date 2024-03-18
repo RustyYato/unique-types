@@ -16,12 +16,13 @@ use crate::generation::{DefaultGeneration, Generation};
 /// The generation is a snapshot of the generation of the slot's genration
 /// If the slot is removed, then this key will become invalidated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration> {
+pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration, Align = u64> {
     index: I,
     generation: G::Filled,
+    _align: [Align; 0],
 }
 
-impl<I: core::hash::Hash, G: Generation> core::hash::Hash for ArenaKey<I, G> {
+impl<I: core::hash::Hash, G: Generation, _Align> core::hash::Hash for ArenaKey<I, G, _Align> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         crate::key_hash::hash(&self.index, self.generation, state)
     }
@@ -145,7 +146,7 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex
 
 // SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
 // filled generation. This is only possible if the generation is filled
-unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<u32, G> {
+unsafe impl<O: ?Sized, G: Generation, _Align: Copy> ArenaIndex<O, G> for ArenaKey<u32, G, _Align> {
     type UtIndex = usize;
 
     unsafe fn new(index: usize, _owner: &O, generation: G::Filled) -> Self {
@@ -154,6 +155,7 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<u32, G> {
                 .try_into()
                 .expect("Tried to push too many elements into Arena"),
             generation,
+            _align: [],
         }
     }
 
@@ -174,11 +176,17 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<u32, G> {
 
 // SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
 // filled generation. This is only possible if the generation is filled
-unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
+unsafe impl<O: ?Sized, G: Generation, _Align: Copy> ArenaIndex<O, G>
+    for ArenaKey<usize, G, _Align>
+{
     type UtIndex = usize;
 
     unsafe fn new(index: usize, _owner: &O, generation: G::Filled) -> Self {
-        Self { index, generation }
+        Self {
+            index,
+            generation,
+            _align: [],
+        }
     }
 
     fn to_index(&self) -> Self::UtIndex {
@@ -199,7 +207,9 @@ unsafe impl<O: ?Sized, G: Generation> ArenaIndex<O, G> for ArenaKey<usize, G> {
 #[cfg(feature = "unique-types")]
 // SAFETY: to_index always return self.index and *matches_generation only succeed if the generation matches the key's
 // filled generation. This is only possible if the generation is filled
-unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKey<UtIndex<O>, G> {
+unsafe impl<O: ?Sized + UniqueToken, G: Generation, _Align: Copy> ArenaIndex<O, G>
+    for ArenaKey<UtIndex<O>, G, _Align>
+{
     type UtIndex = UtIndex<O>;
 
     unsafe fn new(index: usize, owner: &O, generation: G::Filled) -> Self {
@@ -207,6 +217,7 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for ArenaKe
             // SAFETY: the caller ensures that this is a valid index into the [`UtVec`] that owns owner
             index: unsafe { UtIndex::new_unchecked(index, owner) },
             generation,
+            _align: [],
         }
     }
 
