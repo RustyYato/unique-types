@@ -37,8 +37,8 @@ pub struct GenericDenseTracker<
     G: Generation = DefaultGeneration,
     I: InternalIndex = usize,
 > {
-    index_rev: Vec<I>,
-    index_fwd: GenericSparseArena<I, O, G, I>,
+    keys: Vec<I>,
+    index: GenericSparseArena<I, O, G, I>,
 }
 
 /// A vacant slot in a [`GenericDenseTracker`], created by [`GenericDenseTracker::vacant_slot`]
@@ -56,8 +56,8 @@ impl<G: Generation, I: InternalIndex> GenericDenseTracker<(), G, I> {
     /// Create a new [`GenericDenseTracker`]
     pub const fn new() -> Self {
         Self {
-            index_rev: Vec::new(),
-            index_fwd: GenericSparseArena::new(),
+            keys: Vec::new(),
+            index: GenericSparseArena::new(),
         }
     }
 }
@@ -67,8 +67,8 @@ impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Create a new [`GenericDenseTracker`] with the given owner
     pub const fn with_owner(owner: O) -> Self {
         Self {
-            index_rev: Vec::new(),
-            index_fwd: GenericSparseArena::with_owner(owner),
+            keys: Vec::new(),
+            index: GenericSparseArena::with_owner(owner),
         }
     }
 }
@@ -98,23 +98,23 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, O, G, I> {
 impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Access a vacant slot in the arena
     pub fn vacant_slot(&mut self, len: usize) -> VacantSlot<'_, O, G, I> {
-        assert_eq!(self.index_rev.len(), len);
+        assert_eq!(self.keys.len(), len);
         VacantSlot {
-            sparse: self.index_fwd.vacant_slot(),
-            index_rev: &mut self.index_rev,
+            sparse: self.index.vacant_slot(),
+            index_rev: &mut self.keys,
         }
     }
 
     /// The number of elements in the arena
     #[inline]
     pub fn len(&self) -> usize {
-        self.index_rev.len()
+        self.keys.len()
     }
 
     /// Returns true if there are no elements in the arena
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.index_rev.is_empty()
+        self.keys.is_empty()
     }
 
     /// Get the index into the array associated with the key
@@ -122,7 +122,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Returns None if the key is invalid (out of bounds, or incorrect generation)
     #[inline]
     pub fn get<K: ArenaIndex<O, G>>(&self, key: K) -> Option<usize> {
-        self.index_fwd.get(key).copied().map(I::to_usize)
+        self.index.get(key).copied().map(I::to_usize)
     }
 
     /// Get the index into the array associated with the key
@@ -132,7 +132,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// If the key is invalid (out of bounds, or incorrect generation)
     #[inline]
     pub fn at<K: ArenaIndex<O, G>>(&self, key: K) -> usize {
-        self.index_fwd[key].to_usize()
+        self.index[key].to_usize()
     }
 
     /// Get the index into the array associated with the key without checking
@@ -146,7 +146,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     #[inline]
     pub unsafe fn get_unchecked<K: ArenaIndex<O, G>>(&self, key: K) -> usize {
         // SAFETY: the caller ensures that the key is valid
-        unsafe { *self.index_fwd.get_unchecked(key) }.to_usize()
+        unsafe { *self.index.get_unchecked(key) }.to_usize()
     }
 
     /// Get the key associated with an index into the arena
@@ -157,7 +157,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Returns [`None`] if the index points to an empty slot, or is out of bounds
     #[inline]
     pub fn try_key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> Option<K> {
-        self.index_fwd.try_key_of(index)
+        self.index.try_key_of(index)
     }
 
     /// Get the key associated with an index into the arena
@@ -170,7 +170,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// If the index points to an empty slot, or is out of bounds
     #[inline]
     pub fn key_of<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
-        self.index_fwd.key_of(index)
+        self.index.key_of(index)
     }
 
     /// Get the key associated with an index into the arena
@@ -184,30 +184,30 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     #[inline]
     pub unsafe fn key_of_unchecked<K: ArenaIndex<O, G>>(&self, index: usize) -> K {
         // SAFETY: the caller ensures that the index is in bounds and points to a filled slot
-        unsafe { self.index_fwd.key_of_unchecked(index) }
+        unsafe { self.index.key_of_unchecked(index) }
     }
 
     fn remove_at(&mut self, index_fwd: I) -> usize {
-        if self.index_rev.is_empty() {
+        if self.keys.is_empty() {
             debug_assert!(false);
             // SAFETY: all callers ensure that the arena isn't empty
             unsafe { core::hint::unreachable_unchecked() }
         }
-        if index_fwd.to_usize() >= self.index_rev.len() {
-            debug_assert!(false, "{index_fwd:?} >= {}", self.index_rev.len());
+        if index_fwd.to_usize() >= self.keys.len() {
+            debug_assert!(false, "{index_fwd:?} >= {}", self.keys.len());
             // SAFETY: all callers ensure that the index was obtained from self.index_fwd
             // which only contains valid indices
             unsafe { core::hint::unreachable_unchecked() }
         }
 
-        self.index_rev.swap_remove(index_fwd.to_usize());
+        self.keys.swap_remove(index_fwd.to_usize());
 
         // If we are removing the end of the list, then we shouldn't do any more updates
-        if let Some(&index_end_rev) = self.index_rev.get(index_fwd.to_usize()) {
+        if let Some(&key_of_end) = self.keys.get(index_fwd.to_usize()) {
             // we need to update the forward mapping to show that the end is now pointing to index_fwd
             // SAFETY: index_end_rev was obtained from self.index_rev, which only contains
             // valid keys into self.index_fwd
-            unsafe { *self.index_fwd.get_unchecked_mut(index_end_rev.to_usize()) = index_fwd };
+            unsafe { *self.index.get_unchecked_mut(key_of_end.to_usize()) = index_fwd }
         }
 
         index_fwd.to_usize()
@@ -218,7 +218,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// Returns None if the key is invalid or out of bounds
     #[inline]
     pub fn try_remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> Option<usize> {
-        let index_fwd = self.index_fwd.try_remove(key)?;
+        let index_fwd = self.index.try_remove(key)?;
         Some(self.remove_at(index_fwd))
     }
 
@@ -229,7 +229,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// if the key is invalid or out of bounds
     #[inline]
     pub fn remove<K: ArenaIndex<O, G>>(&mut self, key: K) -> usize {
-        let index_fwd = self.index_fwd.remove(key);
+        let index_fwd = self.index.remove(key);
         self.remove_at(index_fwd)
     }
 
@@ -242,7 +242,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     #[inline]
     pub unsafe fn remove_unchecked<K: ArenaIndex<O, G>>(&mut self, key: K) -> usize {
         // SAFETY: caller ensures that the key is in bounds and points to a filled slot
-        let index_fwd = unsafe { self.index_fwd.remove_unchecked(key) };
+        let index_fwd = unsafe { self.index.remove_unchecked(key) };
         self.remove_at(index_fwd)
     }
 
@@ -253,8 +253,8 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// and [`Keys::next`] has O(1) performance
     pub fn keys<K: ArenaIndex<O, G>>(&self) -> Keys<'_, K, O, G, I> {
         Keys {
-            index_rev: self.index_rev.iter(),
-            index_fwd: &self.index_fwd,
+            index_rev: self.keys.iter(),
+            index_fwd: &self.index,
             _key: PhantomData,
         }
     }
