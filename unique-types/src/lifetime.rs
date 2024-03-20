@@ -60,6 +60,11 @@ unsafe impl<'brand> crate::UniqueType for LifetimeUt<'brand> {
     fn owns(&self, _token: &Self::Token) -> bool {
         true
     }
+
+    #[inline]
+    fn provide_unique_token(&self) -> Option<&dyn crate::UniqueToken<Token = Self::Token>> {
+        Some(self)
+    }
 }
 
 // SAFETY: This type ensures that there can't be two instances of the same type

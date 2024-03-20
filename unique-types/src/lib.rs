@@ -47,7 +47,7 @@ pub mod unique_indices;
 /// ```
 pub unsafe trait UniqueType {
     /// A token type which is cheap to share around
-    type Token: Copy + PartialEq;
+    type Token: Copy + Ord;
 
     /// Get the token for this type
     fn token(&self) -> Self::Token;
@@ -57,6 +57,11 @@ pub unsafe trait UniqueType {
     /// NOTE: this may not be the value which created the token so long the value which created the
     /// token is inaccessible beforehand.
     fn owns(&self, token: &Self::Token) -> bool;
+
+    /// If you override this method you must return `Some(self)` and do nothing else
+    fn provide_unique_token(&self) -> Option<&dyn UniqueToken<Token = Self::Token>> {
+        None
+    }
 }
 
 /// A marker trait that guarantees that [`UniqueType::owns`] only returns true for value that
