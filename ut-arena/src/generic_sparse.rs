@@ -228,17 +228,26 @@ impl<T, G: Generation, I: InternalIndex> GenericSparseArena<T, (), G, I> {
     }
 }
 
+impl<T, G: Generation, I: InternalIndex> Default for GenericSparseArena<T, (), G, I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(feature = "unique-types")]
 impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     /// Create a new [`GenericSparseArena`] with the given owner
-    pub const fn with_owner(owner: O) -> Self {
+    pub const fn with_owner(owner: O) -> Self
+    where
+        O: unique_types::UniqueToken,
+    {
         Self {
             free_list_head: 0,
             slots: UtVec::from_owner(owner),
         }
     }
 
-    /// Get the [`UniqueToken`] for this type
+    /// Get the owner of this type's keys
     pub fn owner(&self) -> &O {
         self.slots.owner()
     }

@@ -81,7 +81,13 @@ impl<T> UtVec<T> {
     }
 }
 
-impl<T, O> UtVec<T, O> {
+impl<T> Default for UtVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T, O: UniqueToken> UtVec<T, O> {
     /// Create an empty [`UtVec`] with the given owner
     #[inline]
     #[cfg(feature = "unique-types")]
@@ -94,12 +100,6 @@ impl<T, O> UtVec<T, O> {
     #[cfg(feature = "unique-types")]
     pub const fn from_parts(data: Vec<T>, owner: O) -> Self {
         Self { data, owner }
-    }
-
-    /// Extract the vector from the [`UtVec`]
-    #[inline]
-    pub fn into_vec(self) -> Vec<T> {
-        self.data
     }
 
     /// Extract the vector and owner from the [`UtVec`]
@@ -115,6 +115,14 @@ impl<T, O> UtVec<T, O> {
     #[inline]
     pub unsafe fn into_parts(self) -> (Vec<T>, O) {
         (self.data, self.owner)
+    }
+}
+
+impl<T, O> UtVec<T, O> {
+    /// Extract the vector from the [`UtVec`]
+    #[inline]
+    pub fn into_vec(self) -> Vec<T> {
+        self.data
     }
 }
 

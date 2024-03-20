@@ -62,14 +62,28 @@ impl<G: Generation, I: InternalIndex> GenericDenseTracker<(), G, I> {
     }
 }
 
+impl<G: Generation, I: InternalIndex> Default for GenericDenseTracker<(), G, I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(feature = "unique-types")]
 impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
-    /// Create a new [`GenericDenseTracker`] with the given owner
-    pub const fn with_owner(owner: O) -> Self {
+    /// Create a new [`GenericDenseTracker`] with the given owner    
+    pub const fn with_owner(owner: O) -> Self
+    where
+        O: unique_types::UniqueToken,
+    {
         Self {
             keys: Vec::new(),
             index: GenericSparseArena::with_owner(owner),
         }
+    }
+
+    /// Get the owner of this type's keys
+    pub fn owner(&self) -> &O {
+        self.index.owner()
     }
 }
 
