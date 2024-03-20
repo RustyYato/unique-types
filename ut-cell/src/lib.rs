@@ -150,6 +150,17 @@ pub struct UtCell<T: ?Sized, C: CellOwner + ?Sized> {
     value: UnsafeCell<T>,
 }
 
+// SAFETY:
+// UtCell doesn't wrap token in an `UnsafeCell` so it can inherit it's Sync requirements
+// UtCell expose shared and exclusive reference to T even if you have a shared reference to UtCell
+//      so it must require T: Send + Sync
+unsafe impl<T: ?Sized, C: CellOwner> Sync for UtCell<T, C>
+where
+    T: Send + Sync,
+    C::Token: Sync,
+{
+}
+
 fn validate_trivial_token<T: TrivialToken>(get_align: impl FnOnce() -> usize) {
     fn illegal_trivial_token<T>() -> ! {
         panic!(
