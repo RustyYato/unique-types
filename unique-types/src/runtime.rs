@@ -79,7 +79,9 @@ impl<C: CounterRef> RuntimeUt<C> {
     }
 }
 
-// SAFETY: CounterRef guarantees that only one value
+// SAFETY: CounterRef and Counter guarantees that ...
+// * C::Value 's PartialEq implementation is correct
+// * That C will not emit duplciate values until they have been reclaimed
 unsafe impl<C: CounterRef> UniqueType for RuntimeUt<C> {
     type Token = RuntimeUtToken<C>;
 

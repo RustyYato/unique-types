@@ -6,7 +6,7 @@ macro_rules! custom_counter {
         $v:vis struct $name:ident;
     ) => {
         $crate::custom_counter! {
-            $($meta)*
+            $(#[$meta])*
             $v struct $name(());
         }
     };
@@ -64,7 +64,7 @@ macro_rules! custom_thread_local_counter {
         $v:vis struct $name:ident;
     ) => {
         $crate::thread_local_custom_counter! {
-            $($meta)*
+            $(#[$meta])*
             $v struct $name(());
         }
     };
