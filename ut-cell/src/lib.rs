@@ -310,7 +310,7 @@ impl<T, C: CellOwner + ?Sized> UtCell<T, C> {
     }
 
     /// Construct a [`UtCell`] from a token from a [`CellOwner`]
-    pub fn from_token(token: C::Token, value: T) -> Self {
+    pub const fn from_token(token: C::Token, value: T) -> Self {
         Self {
             token,
             value: UnsafeCell::new(value),

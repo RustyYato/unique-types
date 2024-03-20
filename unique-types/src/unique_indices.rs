@@ -83,6 +83,7 @@ unsafe impl Counter for CellCounter<bool> {
 
     const NEW: Self = Self(Cell::new(true));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         if self.0.replace(false) {
             Some(())
@@ -91,6 +92,7 @@ unsafe impl Counter for CellCounter<bool> {
         }
     }
 
+    #[inline]
     unsafe fn reclaim(&self, (): Self::Value) -> Result<(), Self::Value> {
         debug_assert!(!self.0.get());
         self.0.set(true);
@@ -104,12 +106,14 @@ unsafe impl Counter for CellCounter<u8> {
 
     const NEW: Self = Self(Cell::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU8::new(x).unwrap())
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         if self.0.get() == value.get() {
@@ -127,12 +131,14 @@ unsafe impl Counter for CellCounter<u16> {
 
     const NEW: Self = Self(Cell::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU16::new(x).unwrap())
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         if self.0.get() == value.get() {
@@ -150,12 +156,14 @@ unsafe impl Counter for CellCounter<u32> {
 
     const NEW: Self = Self(Cell::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU32::new(x).unwrap())
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         if self.0.get() == value.get() {
@@ -173,12 +181,14 @@ unsafe impl Counter for CellCounter<u64> {
 
     const NEW: Self = Self(Cell::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU64::new(x).unwrap())
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         if self.0.get() == value.get() {
@@ -196,12 +206,14 @@ unsafe impl Counter for CellCounter<u128> {
 
     const NEW: Self = Self(Cell::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = self.0.get().checked_add(1)?;
         self.0.set(x);
         Some(NonZeroU128::new(x).unwrap())
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         if self.0.get() == value.get() {
@@ -222,6 +234,7 @@ unsafe impl Counter for AtomicCounterBool {
 
     const NEW: Self = Self(AtomicBool::new(false));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         if self
             .0
@@ -234,6 +247,7 @@ unsafe impl Counter for AtomicCounterBool {
         }
     }
 
+    #[inline]
     unsafe fn reclaim(&self, _: Self::Value) -> Result<(), Self::Value> {
         self.0.store(false, Ordering::Release);
         Ok(())
@@ -249,6 +263,7 @@ unsafe impl Counter for AtomicCounterU8 {
 
     const NEW: Self = Self(AtomicU8::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = 1 + self
             .0
@@ -261,6 +276,7 @@ unsafe impl Counter for AtomicCounterU8 {
         Some(unsafe { NonZeroU8::new_unchecked(x) })
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         self.0
@@ -284,6 +300,7 @@ unsafe impl Counter for AtomicCounterU16 {
 
     const NEW: Self = Self(AtomicU16::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = 1 + self
             .0
@@ -296,6 +313,7 @@ unsafe impl Counter for AtomicCounterU16 {
         Some(unsafe { NonZeroU16::new_unchecked(x) })
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         self.0
@@ -319,6 +337,7 @@ unsafe impl Counter for AtomicCounterU32 {
 
     const NEW: Self = Self(AtomicU32::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = 1 + self
             .0
@@ -331,6 +350,7 @@ unsafe impl Counter for AtomicCounterU32 {
         Some(unsafe { NonZeroU32::new_unchecked(x) })
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         self.0
@@ -354,6 +374,7 @@ unsafe impl Counter for AtomicCounterU64 {
 
     const NEW: Self = Self(AtomicU64::new(0));
 
+    #[inline]
     fn next_value(&self) -> Option<Self::Value> {
         let x = 1 + self
             .0
@@ -366,6 +387,7 @@ unsafe impl Counter for AtomicCounterU64 {
         Some(unsafe { NonZeroU64::new_unchecked(x) })
     }
 
+    #[inline]
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // reclaim if it is the last value used
         self.0
