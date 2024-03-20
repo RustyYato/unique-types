@@ -497,7 +497,10 @@ prim_wrapping!(
 );
 
 #[cfg(kani)]
-fn test_generation<G: Generation>(g: G, filled: G::Filled) {
+fn test_generation<G: Generation>(g: G, filled: G::Filled)
+where
+    G::Filled: kani::Arbitrary,
+{
     assert!(G::EMPTY.is_empty());
     assert!(g.is_empty() != g.is_filled());
 
@@ -514,6 +517,7 @@ fn test_generation<G: Generation>(g: G, filled: G::Filled) {
     }
 
     if g.matches(filled) {
-        assert!(g.is_filled())
+        assert!(g.is_filled());
+        assert!(unsafe { g.to_filled() } == filled);
     }
 }
