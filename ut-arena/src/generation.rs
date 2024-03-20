@@ -286,6 +286,8 @@ macro_rules! prim {
         impl kani::Arbitrary for $name_filled {
             fn any() -> Self {
                 let inner = kani::any::<core::num::$filled_inner>();
+                // all filled generations must be odd, so we can let
+                // kani assume that.
                 kani::assume(inner.get() & 1 == 1);
                 Self(inner)
             }
@@ -312,11 +314,28 @@ macro_rules! prim {
 
             #[inline]
             unsafe fn fill(self) -> Self {
+                debug_assert!(self.is_empty());
+
+                // we are guaranteed to get an even number for self.0
+                // because we represent empty generations as even numbers
+                // so self.0 + 1 == self.0 | 1
                 Self(self.0 | 1)
             }
 
             #[inline]
             unsafe fn try_empty(self) -> Result<Self, Self::TryEmptyError> {
+                debug_assert!(self.is_filled());
+
+                // we are guaranteed to get an odd number for self.0
+                // because the caller has to ensure that this is a filled
+                // generation. And we represent filled generations with odd numbers
+                //
+                // If we are implementing a saturaing generation
+                // this will use checked_add, so on MAX generation
+                // (which is guaranteed to be odd), it will fail to convert to empty
+                //
+                // If we are implementing a warpping genration,
+                // this will use wrapping_add, and reuse generations
                 prim_impl!(fn $kind(self, Self))
             }
 
@@ -339,6 +358,7 @@ macro_rules! prim {
 
             #[inline]
             unsafe fn to_filled(self) -> Self::Filled {
+                debug_assert!(self.is_filled());
                 // SAFETY: all filled generations have the least significant bit set, so mut be
                 // non-zero
                 $name_filled(unsafe { core::num::$filled_inner::new_unchecked(self.0) })
@@ -346,6 +366,7 @@ macro_rules! prim {
 
             #[inline]
             fn is_empty(self) -> bool {
+                // we represent empty as any even numbered generation
                 self.0 & 1 == 0
             }
         }
