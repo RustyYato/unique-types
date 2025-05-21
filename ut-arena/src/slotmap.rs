@@ -174,6 +174,12 @@ impl<T> SlotMap<T> {
     }
 }
 
+impl<T> Default for SlotMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> core::ops::Index<usize> for SlotMap<T> {
     type Output = T;
 

@@ -171,6 +171,12 @@ impl<T> DenseSlotMap<T> {
     }
 }
 
+impl<T> Default for DenseSlotMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> core::ops::Index<ArenaKey> for DenseSlotMap<T> {
     type Output = T;
 

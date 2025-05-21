@@ -1,4 +1,4 @@
-use std::{hint::black_box, marker};
+use std::hint::black_box;
 
 use criterion::{criterion_group, Criterion};
 use rand::Rng;
@@ -30,9 +30,9 @@ fn make_workload(rng: &mut impl Rng, config: WorkloadConfig) -> Vec<Action> {
     assert!(config.removals <= config.inserts);
 
     let mut pool = Vec::new();
-    pool.extend(std::iter::repeat(ActionType::Insert).take(config.inserts));
-    pool.extend(std::iter::repeat(ActionType::Remove).take(config.removals));
-    pool.extend(std::iter::repeat(ActionType::Access).take(config.accesses));
+    pool.extend(std::iter::repeat_n(ActionType::Insert, config.inserts));
+    pool.extend(std::iter::repeat_n(ActionType::Remove, config.removals));
+    pool.extend(std::iter::repeat_n(ActionType::Access, config.accesses));
     let mut pool_removed = Vec::new();
     let mut may_access = Vec::new();
 
@@ -202,7 +202,6 @@ fn run_workload_slab(workload: &[Action]) {
 }
 
 fn run_workload_sparse_lt(workload: &[Action]) {
-    use unique_types::lifetime::LifetimeUt;
     unique_types::unique_lifetime!(lt);
     let mut slab =
         ut_arena::generic_sparse::GenericSparseArena::<_, _, NoGeneration>::with_owner(lt);

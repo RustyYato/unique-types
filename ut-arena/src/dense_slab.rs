@@ -166,6 +166,12 @@ impl<T> DenseSlab<T> {
     }
 }
 
+impl<T> Default for DenseSlab<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> core::ops::Index<usize> for DenseSlab<T> {
     type Output = T;
 

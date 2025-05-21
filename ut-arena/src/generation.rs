@@ -22,7 +22,7 @@ use core::{fmt, hash::Hash};
 /// * you can check if a key's generation matches a slot's generation via [`Generation::matches`]
 ///     * and [`Generation::write_mismatch`] writes the error message in case of these don't match
 /// * is_empty, and is_filled can be used to check if the slot for this generation is filled or
-///       empty
+///   empty
 ///
 /// # Safety
 ///

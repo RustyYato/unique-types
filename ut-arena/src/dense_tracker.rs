@@ -7,7 +7,7 @@
 //!
 //! * Each time you call [`VacantSlot::insert`], you must push an element into the array(s)
 //! * Each time you call [`GenericDenseTracker::remove`] (or it's variants), successfully
-//!  you must [`Vec::swap_remove`] the corresponding element out of the array(s)
+//!   you must [`Vec::swap_remove`] the corresponding element out of the array(s)
 //!
 //! If you do these two things, then all indices in the
 //! [`GenericDenseTracker`](crate::generic_dense::GenericDenseArena) are guaranteed

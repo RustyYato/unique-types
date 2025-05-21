@@ -74,7 +74,7 @@ pub(crate) fn access_empty_slot(index: usize) -> ! {
 /// * `to_index` must not change what index it returns
 /// * `matches_generation` should only succeed if the generation is filled
 /// * `assert_matches_generation` should only return normally if `matches_generation` would have
-///     returned true
+///   returned true
 pub unsafe trait ArenaIndex<O: ?Sized, G: Generation>: Copy {
     /// The underlying index type
     type UtIndex: UtVecElementIndex<O> + Copy;

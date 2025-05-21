@@ -85,7 +85,7 @@ impl<T, Ts: Seal> Seal for Cons<T, Ts> {}
 // assert_owned_by does check that all values in the list are owned by the given owner
 // there is only one element in the list, so there can't be any overlaps
 // overlaps_with does check that all cells in the list don't overlap with the given memory region
-unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T, C>, Nil> {
+unsafe impl<T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&UtCell<T, C>, Nil> {
     type Owner = C;
 
     fn is_owned_by(&self, owner: &Self::Owner, i: usize) -> Result<(), super::TryLoadAllError> {
@@ -119,7 +119,7 @@ unsafe impl<'a, T: ?Sized, C: CellOwner + ?Sized> CellList for Cons<&'a UtCell<T
 // assert_owned_by does check that all values in the list are owned by the given owner
 // the head is checked that it doesn't overlap with any other element in the list
 // overlaps_with does check that all cells in the list don't overlap with the given memory region
-unsafe impl<'a, T: ?Sized, Ts: CellList> CellList for Cons<&'a UtCell<T, Ts::Owner>, Ts> {
+unsafe impl<T: ?Sized, Ts: CellList> CellList for Cons<&UtCell<T, Ts::Owner>, Ts> {
     type Owner = Ts::Owner;
 
     fn is_owned_by(&self, owner: &Self::Owner, i: usize) -> Result<(), crate::TryLoadAllError> {

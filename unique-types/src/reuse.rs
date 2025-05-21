@@ -79,6 +79,7 @@ pub unsafe trait Reuse: ReuseMut {
 unsafe impl<T: ReuseMut> ReuseMut for Mutex<T> {
     type Value = T::Value;
 
+    #[allow(clippy::declare_interior_mutable_const)]
     const NEW: Self = Self::new(T::NEW);
 
     fn reclaim_mut(&mut self, value: Self::Value) -> Result<(), Self::Value> {
@@ -120,6 +121,7 @@ unsafe impl<T: ReuseMut> Reuse for Mutex<T> {
 unsafe impl<T: ReuseMut> ReuseMut for RefCell<T> {
     type Value = T::Value;
 
+    #[allow(clippy::declare_interior_mutable_const)]
     const NEW: Self = Self::new(T::NEW);
 
     fn reclaim_mut(&mut self, value: Self::Value) -> Result<(), Self::Value> {

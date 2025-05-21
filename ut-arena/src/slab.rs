@@ -171,6 +171,12 @@ impl<T> Slab<T> {
     }
 }
 
+impl<T> Default for Slab<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> core::ops::Index<usize> for Slab<T> {
     type Output = T;
 

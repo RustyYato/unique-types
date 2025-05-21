@@ -32,8 +32,8 @@ use crate::{
 ///
 /// Each element of the list is a `Slot`, each slot can be in one of two states:
 /// * Empty: then it stores the generation and the next empty slot. If there are no other empty
-/// slots, then it holds the an index to one past the end of the list.
-/// For example, above slot4 points to 4, which is one past the end of the list.
+///   slots, then it holds the an index to one past the end of the list.
+///   For example, above slot4 points to 4, which is one past the end of the list.
 /// * Filled: then it stores the generation and the value it's filled with.
 ///
 /// The genration is responsible for tracking if a slot is empty or filled, so we don't need any
@@ -43,8 +43,7 @@ use crate::{
 /// list if there are no more elements.
 ///
 /// On insertion,
-/// 1. if the free_list_head points to one pas the end
-///     a. push a new slot
+/// 1. if the free_list_head points to one past the end, push a new slot
 /// 2. now the free_list_head points to a valid slot
 /// 3. insert the value into the slot pointed to by the free_list_head
 /// 4. increment the generation of the slot
@@ -52,9 +51,9 @@ use crate::{
 /// On access,
 /// 1. Check that the key is in bounds
 /// 2. check the generation of the indexed slot, and return an error if they fail
-///     a. if the key is [`usize`], or [`UtIndex`](ut_vec::UtIndex) then check if the genration
+///   * if the key is [`usize`], or [`UtIndex`](ut_vec::UtIndex) then check if the genration
 ///     represents a filled generation
-///     b. if the key is [`ArenaKey`](crate::key::ArenaKey), then check if the key's generation
+///   * if the key is [`ArenaKey`](crate::key::ArenaKey), then check if the key's generation
 ///     matches the slot's generation
 /// 3. return the slot's value
 ///
@@ -62,9 +61,9 @@ use crate::{
 /// 1. do "On access,"
 /// 2. remove the value from the slot
 /// 3. try to increment the generation
-///     a. on success, write free_list_head to the slot, then set free_list_head to the index of
+///   * on success, write free_list_head to the slot, then set free_list_head to the index of
 ///     the slot
-///     b. on failure write [`Generation::EMPTY`] as the generation and don't modify free_list_head
+///   * on failure write [`Generation::EMPTY`] as the generation and don't modify free_list_head
 ///     (thus "leaking" the slot, as it can no longer be used at all).
 /// 4. return the value
 ///

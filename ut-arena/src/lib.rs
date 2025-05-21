@@ -52,8 +52,8 @@
 //! There are three main strategies for ABA-hardening
 //!
 //! 1. increment a `uN` counter and if it ever reaches `uN::MAX`, then that slot is
-//!   exhausted. This slot will never contain any new elements in it.
-//!   This is handled by the `gN` types in [`generation`], such as [`g32`](generation::g32)
+//!    exhausted. This slot will never contain any new elements in it.
+//!    This is handled by the `gN` types in [`generation`], such as [`g32`](generation::g32)
 //!
 //! 2. increment a `uN` counter and if it ever reaches `uN::MAX`, just wrap around back to 0
 //!    NOTE: this looses the guarantee that all ArenaKeys are unique, but also allows reusing
@@ -61,8 +61,8 @@
 //!    This is handled by the `gwN` types in [`generation`], such as [`gw32`](generation::gw32)
 //!
 //! 3. flip a bool to indicate if the slot is empty or not.
-//!     NOTE: This doesn't handle the ABA problem at all. But can be useful if that's not actually
-//!     a problem for your domain. This is implemented by [`NoGeneration`](generation::NoGeneration)
+//!    NOTE: This doesn't handle the ABA problem at all. But can be useful if that's not actually
+//!    a problem for your domain. This is implemented by [`NoGeneration`](generation::NoGeneration)
 //!
 //! The default strategy ([`DefaultGeneration`](generation::DefaultGeneration)) currently uses
 //! [`gsize`](generation::gsize) as the backing generation type, but this may be changed in the future.
