@@ -87,7 +87,7 @@ impl crate::TrivialToken for LifetimeUtToken<'_> {
 
 /// Creates a type with a unique lifetime
 ///
-/// ```compile_fail,E0597
+/// ```compile_fail,E0716
 /// # use unique_types::{UniqueType, unique_lifetime};
 /// unique_lifetime!(a);
 /// unique_lifetime!(b);
