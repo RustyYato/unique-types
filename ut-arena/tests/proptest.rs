@@ -89,9 +89,9 @@ fn test_arena<A: Arena>() {
         scopeguard::defer_on_unwind! {
             println!("failed on iteration {i}")
         }
-        match rng.gen_range(0..=4) {
+        match rng.random_range(0..=4) {
             0 => {
-                let x = rng.gen();
+                let x = rng.random();
                 let key = arena.insert(x);
                 // println!("insert {x:?} -> {key:?}");
 
@@ -115,7 +115,7 @@ fn test_arena<A: Arena>() {
                     continue;
                 };
 
-                let new_val = rng.gen();
+                let new_val = rng.random();
                 // println!("mutate {key:?} => {val:?} => {new_val:?}");
 
                 assert_eq!(arena[key], *val);

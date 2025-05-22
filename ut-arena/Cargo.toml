@@ -14,11 +14,11 @@ unique-types = { path = "../unique-types", optional = true }
 ut-vec = { path = "../ut-vec" }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.9"
 scopeguard = "1"
-rustc-hash = "1"
+rustc-hash = "2"
 
-criterion = "0.5"
+criterion = "0.6"
 
 slab = "0.4"
 slotmap = "1"

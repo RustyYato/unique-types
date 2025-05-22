@@ -44,12 +44,12 @@ fn make_workload(rng: &mut impl Rng, config: WorkloadConfig) -> Vec<Action> {
         let mut inserts_left = config.inserts;
 
         while !pool.is_empty() {
-            let i = rng.gen_range(0..pool.len());
+            let i = rng.random_range(0..pool.len());
 
             match pool[i] {
                 ActionType::Insert => {
                     inserts_left -= 1;
-                    let c = rng.gen();
+                    let c = rng.random();
                     let key = slab.insert(c);
                     may_access.push(key);
                     pool_removed.push(pool.remove(i));
@@ -60,7 +60,7 @@ fn make_workload(rng: &mut impl Rng, config: WorkloadConfig) -> Vec<Action> {
                         continue;
                     }
 
-                    let x = rng.gen_range(0..may_access.len());
+                    let x = rng.random_range(0..may_access.len());
                     let key = may_access.remove(x);
                     slab.remove(key);
                     workload.push(Action::Remove(key));
@@ -75,7 +75,7 @@ fn make_workload(rng: &mut impl Rng, config: WorkloadConfig) -> Vec<Action> {
                         continue;
                     }
 
-                    let x = rng.gen_range(0..may_access.len());
+                    let x = rng.random_range(0..may_access.len());
                     let key = may_access[x];
                     workload.push(Action::Access(key));
                     pool_removed.push(pool.remove(i));
@@ -95,7 +95,7 @@ fn make_workload(rng: &mut impl Rng, config: WorkloadConfig) -> Vec<Action> {
 
 fn run_sparse(c: &mut Criterion) {
     let mut bench_workload = move |name: &str, config: WorkloadConfig| {
-        let workload = make_workload(&mut rand::thread_rng(), config);
+        let workload = make_workload(&mut rand::rng(), config);
 
         c.benchmark_group(name)
             .throughput(criterion::Throughput::Elements(workload.len() as u64))
