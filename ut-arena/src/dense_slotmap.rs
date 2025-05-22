@@ -1,14 +1,14 @@
 //! This is a reimplementation of the `slotmap` crate which is based off of
 //! [`GenericDenseArena`]
 //!
-//! It should retain all the same performance and memory characteristics as `DenseSlotMap`
+//! It should retain all the same performance and memory characteristics as [`DenseSlotMap`]
 
 use crate::{
     generation::gw32,
     generic_dense::{self as dense, GenericDenseArena},
 };
 
-/// The key type for [`SlotMap`]
+/// The key type for [`DenseSlotMap`]
 pub type ArenaKey = crate::key::ArenaKey<u32, gw32>;
 
 /// see [`GenericDenseArena`]
@@ -137,26 +137,25 @@ impl<T> DenseSlotMap<T> {
         unsafe { self.arena.remove_unchecked(key) }
     }
 
-    /// An unordered list of values in the DenseSlotMap
+    /// An unordered list of values in the [`DenseSlotMap`]
     pub fn values(&self) -> &[T] {
         self.arena.values()
     }
 
-    /// An mutable unordered list of values in the DenseSlotMap
+    /// An mutable unordered list of values in the [`DenseSlotMap`]
     pub fn values_mut(&mut self) -> &mut [T] {
         self.arena.values_mut()
     }
 
-    /// An iterator over all the keys in the DenseSlotMap
+    /// An iterator over all the keys in the [`DenseSlotMap`]
     pub fn keys(&self) -> Keys<'_> {
         Keys {
             keys: self.arena.tracker().keys(),
         }
     }
 
-    /// The mutable slice of values in this [`DenseDenseSlotMap`]
-    /// and the [`GenericDenseTracker`](crate::dense_tracker::GenericDenseTracker)
-    /// that this [`DenseSlotMap`] uses
+    /// The mutable slice of values in this [`DenseSlotMap`]
+    /// and the [`Keys`] of this [`DenseSlotMap`]
     ///
     /// This method is to work around limitations in Rust's borrow checker
     pub fn keys_and_values_mut(&mut self) -> (Keys<'_>, &mut [T]) {
@@ -190,7 +189,7 @@ impl<T> core::ops::IndexMut<ArenaKey> for DenseSlotMap<T> {
     }
 }
 
-/// An iterator over the keys in a [`DenseDenseSlotMap`]
+/// An iterator over the keys in a [`DenseSlotMap`]
 pub struct Keys<'a> {
     keys: crate::dense_tracker::Keys<'a, ArenaKey, (), gw32, u32>,
 }
