@@ -1,10 +1,6 @@
 use std::ops::IndexMut;
 
-use rand::{
-    rngs::StdRng,
-    seq::{IteratorRandom, SliceRandom},
-    Rng, SeedableRng,
-};
+use rand::{rngs::StdRng, seq::IteratorRandom, Rng, SeedableRng};
 use ut_arena::{
     generation::g8, generic_dense::GenericDenseArena, generic_sparse::GenericSparseArena,
 };
@@ -80,7 +76,7 @@ impl Arena for GenericSparseArena<char, (), g8> {
 fn test_arena<A: Arena>() {
     let mut arena = A::new();
     let mut map = rustc_hash::FxHashMap::default();
-    let mut dead_keys = Vec::new();
+    let mut dead_keys = rustc_hash::FxHashSet::default();
 
     let seed = rand::random();
     let mut rng = StdRng::from_seed(seed);
@@ -98,7 +94,12 @@ fn test_arena<A: Arena>() {
                 let x = rng.gen();
                 let key = arena.insert(x);
                 // println!("insert {x:?} -> {key:?}");
+
+                // the arena is using a saturating generation, so it should *never* produce any keys
+                // it produced before on insert
                 assert!(!map.contains_key(&key));
+                assert!(!dead_keys.contains(&key));
+
                 map.insert(key, x);
             }
             1 => {
@@ -129,10 +130,10 @@ fn test_arena<A: Arena>() {
                 // println!("remove {key:?} => {val:?}");
 
                 assert_eq!(arena.remove(key), val);
-                dead_keys.push(key);
+                dead_keys.insert(key);
             }
             4 => {
-                let Some(&key) = dead_keys.as_slice().choose(&mut rng) else {
+                let Some(&key) = dead_keys.iter().choose(&mut rng) else {
                     continue;
                 };
                 // println!("test dead {key:?}");
