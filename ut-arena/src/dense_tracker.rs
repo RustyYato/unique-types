@@ -104,8 +104,10 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, O, G, I> {
     /// `self.position()` in the associated array
     pub fn insert(self) {
         let len = self.position();
-        self.index_rev.push(I::from_usize(self.sparse.key()));
-        self.sparse.insert(I::from_usize(len))
+        let index_rev = I::from_usize(self.sparse.key());
+        let len = I::from_usize(len);
+        self.index_rev.push(index_rev);
+        self.sparse.insert(len)
     }
 }
 
