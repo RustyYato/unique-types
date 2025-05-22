@@ -204,17 +204,12 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     }
 
     fn remove_at(&mut self, index_fwd: I) -> usize {
-        if self.keys.is_empty() {
-            debug_assert!(false);
-            // SAFETY: all callers ensure that the arena isn't empty
-            unsafe { core::hint::unreachable_unchecked() }
-        }
-        if index_fwd.to_usize() >= self.keys.len() {
-            debug_assert!(false, "{index_fwd:?} >= {}", self.keys.len());
-            // SAFETY: all callers ensure that the index was obtained from self.index_fwd
-            // which only contains valid indices
-            unsafe { core::hint::unreachable_unchecked() }
-        }
+        // SAFETY: all callers ensure that the arena isn't empty
+        unsafe { assert_unchecked!(!self.keys.is_empty()) }
+
+        // SAFETY: all callers ensure that the index was obtained from self.index_fwd
+        // which only contains valid indices
+        unsafe { assert_unchecked!(index_fwd.to_usize() < self.keys.len()) }
 
         self.keys.swap_remove(index_fwd.to_usize());
 

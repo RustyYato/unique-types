@@ -175,10 +175,8 @@ where
     }
 
     unsafe fn remove_at(&mut self, index: usize) -> T {
-        if index >= self.values.len() {
-            // SAFETY: all callers ensure that the index is in bounds
-            unsafe { core::hint::unreachable_unchecked() }
-        }
+        // SAFETY: all callers ensure that the index is in bounds
+        unsafe { assert_unchecked!(index < self.values.len()) };
 
         self.values.swap_remove(index)
     }

@@ -119,6 +119,9 @@
 
 extern crate alloc;
 
+#[macro_use]
+mod polyfill;
+
 pub mod dense_tracker;
 pub mod generic_dense;
 pub mod generic_sparse;
