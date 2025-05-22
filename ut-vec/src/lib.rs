@@ -40,6 +40,13 @@ pub struct UtIndex<O: ?Sized + UniqueToken> {
 }
 
 #[cfg(feature = "unique-types")]
+/// An index into the [`UtVec`] that owns this index
+pub struct UtFencepost<O: ?Sized + UniqueToken> {
+    token: O::Token,
+    index: usize,
+}
+
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Copy for UtIndex<O> {}
 #[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> Clone for UtIndex<O> {
@@ -49,7 +56,36 @@ impl<O: ?Sized + UniqueToken> Clone for UtIndex<O> {
 }
 
 #[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> Copy for UtFencepost<O> {}
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> Clone for UtFencepost<O> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+#[cfg(feature = "unique-types")]
 impl<O: ?Sized + UniqueToken> UtIndex<O> {
+    /// Get the underlying index
+    #[inline]
+    pub const fn get(&self) -> usize {
+        self.index
+    }
+
+    /// # Safety
+    ///
+    /// The index must be in bounds of the [`UtVec`] that is owns the owner
+    #[inline]
+    pub unsafe fn new_unchecked(index: usize, owner: &O) -> Self {
+        Self {
+            index,
+            token: owner.token(),
+        }
+    }
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> UtFencepost<O> {
     /// Get the underlying index
     #[inline]
     pub const fn get(&self) -> usize {
@@ -302,12 +338,30 @@ impl<T, O: ?Sized + UniqueToken> UtVec<T, O> {
         self.indices().nth(i)
     }
 
+    /// Check if a given index is in bounds, if so return a [`UtIndex`] version of that index
+    pub fn fencepost_is_in_bounds(&self, i: usize) -> Option<UtFencepost<O>> {
+        self.fenceposts().nth(i)
+    }
+
     /// An iterator over all valid indices in this vector
     pub fn indices(&self) -> Indices<O> {
         Indices {
             token: self.owner.token(),
             start: 0,
             end: self.len(),
+        }
+    }
+
+    /// An iterator over all valid indices in this vector
+    pub fn fenceposts(&self) -> Fenceposts<O> {
+        if core::mem::size_of::<T>() == 0 {
+            assert!(self.len() < usize::MAX);
+        }
+
+        Fenceposts {
+            token: self.owner.token(),
+            start: 0,
+            end: self.len() + 1,
         }
     }
 }
@@ -370,6 +424,81 @@ impl<O: UniqueToken + ?Sized> DoubleEndedIterator for Indices<O> {
             let index = self.end.wrapping_sub(1);
             self.end = index;
             Some(UtIndex {
+                token: self.token,
+                index,
+            })
+        }
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let (end, ovf) = self.end.overflowing_sub(n);
+        if ovf || self.start >= end {
+            self.start = self.end;
+            None
+        } else {
+            self.next_back()
+        }
+    }
+}
+
+#[cfg(feature = "unique-types")]
+/// An iterator over all Fenceposts in a [`UtVec`]
+pub struct Fenceposts<O: ?Sized + UniqueToken> {
+    token: O::Token,
+    start: usize,
+    end: usize,
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: UniqueToken + ?Sized> ExactSizeIterator for Fenceposts<O> {}
+#[cfg(feature = "unique-types")]
+impl<O: UniqueToken + ?Sized> core::iter::FusedIterator for Fenceposts<O> {}
+#[cfg(feature = "unique-types")]
+impl<O: UniqueToken + ?Sized> Iterator for Fenceposts<O> {
+    type Item = UtFencepost<O>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start == self.end {
+            None
+        } else {
+            let index = self.start;
+            self.start += 1;
+            Some(UtFencepost {
+                token: self.token,
+                index,
+            })
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let (start, ovf) = self.start.overflowing_add(n);
+        if ovf || start >= self.end {
+            self.start = self.end;
+            None
+        } else {
+            self.next()
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.end - self.start;
+        (len, Some(len))
+    }
+
+    fn count(self) -> usize {
+        self.len()
+    }
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: UniqueToken + ?Sized> DoubleEndedIterator for Fenceposts<O> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start == self.end {
+            None
+        } else {
+            let index = self.end.wrapping_sub(1);
+            self.end = index;
+            Some(UtFencepost {
                 token: self.token,
                 index,
             })
@@ -930,5 +1059,82 @@ impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeInclusive<UtIndex<O>> 
     ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
         unsafe { (self.start().index..=self.end().index).offset_slice(slice, owner) }
+    }
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> Seal for ops::RangeTo<UtFencepost<O>> {}
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeTo<UtFencepost<O>> {
+    type OutputKind = Slice;
+
+    fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
+        if owner.owns(&self.end.token) {
+            Ok(())
+        } else {
+            Err(IndexError::NotOwned)
+        }
+    }
+
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
+        // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
+        unsafe { (..self.end.index).offset_slice(slice, owner) }
+    }
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> Seal for ops::RangeFrom<UtFencepost<O>> {}
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::RangeFrom<UtFencepost<O>> {
+    type OutputKind = Slice;
+
+    fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
+        if owner.owns(&self.start.token) {
+            Ok(())
+        } else {
+            Err(IndexError::NotOwned)
+        }
+    }
+
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
+        // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
+        unsafe { (self.start.index..).offset_slice(slice, owner) }
+    }
+}
+
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> Seal for ops::Range<UtFencepost<O>> {}
+#[cfg(feature = "unique-types")]
+impl<O: ?Sized + UniqueToken> UtVecIndex<O> for ops::Range<UtFencepost<O>> {
+    type OutputKind = Slice;
+
+    fn is_in_bounds(&self, _len: usize, owner: &O) -> Result<(), IndexError> {
+        if self.start.index > self.end.index {
+            Err(IndexError::OutOfOrder {
+                start: self.start.index,
+                end: self.end.index,
+            })
+        } else if owner.owns(&self.start.token) && owner.owns(&self.end.token) {
+            Ok(())
+        } else {
+            Err(IndexError::NotOwned)
+        }
+    }
+
+    unsafe fn offset_slice<T>(
+        self,
+        slice: NonNull<[T]>,
+        owner: &O,
+    ) -> NonNull<GetOutputType<Self, O, T>> {
+        // SAFETY: if the owner owns this index, then it is guaranteed to be in bounds
+        unsafe { (self.start.index..self.end.index).offset_slice(slice, owner) }
     }
 }
