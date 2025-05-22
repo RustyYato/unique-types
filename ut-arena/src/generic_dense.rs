@@ -82,6 +82,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
     /// Insert an element into this slot
     pub fn insert(self, value: T) {
         let index = self.slot.position();
+        debug_assert_eq!(index, self.vec.len());
 
         // SAFETY: [`GenericDenseArena::vacant_slot`] ensures that the vector has
         // enough capacity for this write
@@ -265,5 +266,43 @@ impl<K: ArenaIndex<O, G>, O: ?Sized, G: Generation, I: InternalIndex, T> ops::In
         let index = self.tracker.at(index).to_usize();
         // SAFETY: the tracker ensures that index is in bounds
         unsafe { self.values.get_unchecked_mut(index) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GenericDenseArena;
+
+    #[test]
+    fn basic() {
+        let mut arena = GenericDenseArena::<u32, (), crate::generation::g8>::new();
+
+        let a: crate::key::ArenaKey<usize, _> = arena.insert(0);
+
+        assert_eq!(arena[a], 0);
+
+        arena.remove(a);
+
+        let b: crate::key::ArenaKey<usize, _> = arena.insert(10);
+
+        assert_eq!(a.index(), b.index());
+        assert_eq!(arena[b], 10);
+        assert_eq!(arena.get(a), None);
+
+        arena.remove(b);
+
+        for _ in 0..126 {
+            let a: crate::key::ArenaKey<usize, _> = arena.insert(0);
+            assert_eq!(a.index(), b.index());
+
+            assert_eq!(arena[a], 0);
+
+            arena.remove(a);
+        }
+
+        // at this point we have exhausted the first slot, so it will never be used again
+
+        let a: crate::key::ArenaKey<usize, _> = arena.insert(0);
+        assert_ne!(a.index(), b.index());
     }
 }

@@ -87,6 +87,7 @@ impl<T> Default for UtVec<T> {
     }
 }
 
+#[cfg(feature = "unique-types")]
 impl<T, O: UniqueToken> UtVec<T, O> {
     /// Create an empty [`UtVec`] with the given owner
     #[inline]
