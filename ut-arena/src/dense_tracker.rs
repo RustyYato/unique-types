@@ -14,7 +14,7 @@
 //! to be correct indices into you array(s).
 //!
 //! This allows you to build up your own dense arenas. For example,
-//! [`GenericDenseArena`](crate::generic_dense::GenericDenseArena) stores all elemnts as an
+//! [`GenericDenseArena`](crate::generic_dense::GenericDenseArena) stores all elements as an
 //! [AoS](https://en.wikipedia.org/wiki/AoS_and_SoA) and you could store them as a SoA instead
 //! to improve iteration performance of some fields.
 

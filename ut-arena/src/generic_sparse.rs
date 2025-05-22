@@ -27,7 +27,7 @@ use crate::{
 ///
 /// ```text
 /// free_list_head: 1
-/// data: [ [ generation1, value1 ], [ generation2, 3 ], [ genration3, value2 ], [ genration4, 4 ], ]
+/// data: [ [ generation1, value1 ], [ generation2, 3 ], [ generation3, value2 ], [ generation4, 4 ], ]
 /// ```
 ///
 /// Each element of the list is a `Slot`, each slot can be in one of two states:
@@ -36,7 +36,7 @@ use crate::{
 ///   For example, above slot4 points to 4, which is one past the end of the list.
 /// * Filled: then it stores the generation and the value it's filled with.
 ///
-/// The genration is responsible for tracking if a slot is empty or filled, so we don't need any
+/// The generation is responsible for tracking if a slot is empty or filled, so we don't need any
 /// other way to discriminate between them.
 ///
 /// the free_list_head points to the first element of the free list, or one past the end of the
@@ -51,7 +51,7 @@ use crate::{
 /// On access,
 /// 1. Check that the key is in bounds
 /// 2. check the generation of the indexed slot, and return an error if they fail
-///   * if the key is [`usize`], or [`UtIndex`](ut_vec::UtIndex) then check if the genration
+///   * if the key is [`usize`], or [`UtIndex`](ut_vec::UtIndex) then check if the generation
 ///     represents a filled generation
 ///   * if the key is [`ArenaKey`](crate::key::ArenaKey), then check if the key's generation
 ///     matches the slot's generation
@@ -196,7 +196,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
         // is empty
         // and it's not possible to call [`Self::insert`] multiple times
         // casting FilledSlot<T, G> to FilledSlot<MaybeUninit<T>, G> is legal
-        // becuase FilledSlot is repr(C), and MaybeUninit<T> has the same repr as T
+        // because FilledSlot is repr(C), and MaybeUninit<T> has the same repr as T
         // and because FilledSlot just stores a T, and doesn't do anything fancy with it
         let slot = unsafe {
             &mut *(self.slot as *mut Slot<T, G, I> as *mut FilledSlot<MaybeUninit<T>, G>)
@@ -402,7 +402,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         if slot.generation().is_filled() {
             debug_assert!(slot.generation().is_filled());
             // SAFETY: self.get ensures that the index is in bounds
-            // and we have checked that the genration is filled
+            // and we have checked that the generation is filled
             Some(unsafe { K::new(index, self.slots.owner(), slot.generation().to_filled()) })
         } else {
             None
@@ -421,7 +421,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
             crate::key::access_empty_slot(index)
         }
         // SAFETY: self.get ensures that the index is in bounds
-        // and we have checked that the genration is filled
+        // and we have checked that the generation is filled
         unsafe { K::new(index, self.slots.owner(), slot.generation().to_filled()) }
     }
 
@@ -436,7 +436,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         let slot = unsafe { self.slots.get_unchecked(index) };
         debug_assert!(slot.generation().is_filled());
 
-        // SAFETY: the caller ensures that the genration is filled
+        // SAFETY: the caller ensures that the generation is filled
         unsafe { K::new(index, self.slots.owner(), slot.generation().to_filled()) }
     }
 
@@ -452,7 +452,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
             debug_assert!(slot.generation().is_filled());
 
             // SAFETY: self.get ensures that the index is in bounds
-            // we have checked that the genration is filled
+            // we have checked that the generation is filled
             // and free_list_head always points to a valid empty index
             Some(unsafe { slot.remove(index, &mut self.free_list_head) })
         } else {
@@ -474,7 +474,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         debug_assert!(slot.generation().is_filled());
 
         // SAFETY: self.get ensures that the index is in bounds
-        // we have checked that the genration is filled
+        // we have checked that the generation is filled
         // and free_list_head always points to a valid empty index
         unsafe { slot.remove(index, &mut self.free_list_head) }
     }

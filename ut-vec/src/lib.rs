@@ -732,7 +732,7 @@ impl<O: ?Sized> UtVecIndex<O> for usize {
         _owner: &O,
     ) -> NonNull<GetOutputType<Self, O, T>> {
         // SAFETY: is_in_bounds checks that self is in bounds of the slice length
-        // and the slice is in a single allocation for it's entire, so offseting
+        // and the slice is in a single allocation for it's entire, so offsetting
         // somewhere inside that length if fine
         unsafe { NonNull::new_unchecked(slice.as_ptr().cast::<T>().add(self)) }
     }

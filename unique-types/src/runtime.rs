@@ -1,4 +1,4 @@
-//! Represents a [`UniqueType`] which tries to aquire a unique value at runtime
+//! Represents a [`UniqueType`] which tries to acquire a unique value at runtime
 
 use core::{hash::Hash, marker::PhantomData};
 
@@ -81,7 +81,7 @@ impl<C: CounterRef> RuntimeUt<C> {
 
 // SAFETY: CounterRef and Counter guarantees that ...
 // * C::Value 's PartialEq implementation is correct
-// * That C will not emit duplciate values until they have been reclaimed
+// * That C will not emit duplicate values until they have been reclaimed
 unsafe impl<C: CounterRef> UniqueType for RuntimeUt<C> {
     type Token = RuntimeUtToken<C>;
 

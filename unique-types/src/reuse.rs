@@ -1,4 +1,4 @@
-//! a generic wway to robustly reuse [`CounterValue`](crate::unique_indices::CounterValue)s
+//! a generic way to robustly reuse [`CounterValue`](crate::unique_indices::CounterValue)s
 
 use core::{cell::RefCell, marker::PhantomData};
 #[cfg(feature = "std")]

@@ -13,7 +13,7 @@ use crate::generation::{DefaultGeneration, Generation};
 
 /// [`ArenaKey`] is just an index and a generation pair
 ///
-/// The generation is a snapshot of the generation of the slot's genration
+/// The generation is a snapshot of the generation of the slot's generation
 /// If the slot is removed, then this key will become invalidated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ArenaKey<I = usize, G: Generation = DefaultGeneration, Align = u64> {
@@ -64,7 +64,7 @@ fn matches_generation_failed<G: Generation>(generation: G, filled: G::Filled, in
 #[cold]
 #[inline(never)]
 pub(crate) fn access_empty_slot(index: usize) -> ! {
-    panic!("Tried to access empy slot at index: {index}")
+    panic!("Tried to access empty slot at index: {index}")
 }
 
 /// A trait that manages access to arenas

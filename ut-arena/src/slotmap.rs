@@ -13,8 +13,8 @@ pub type ArenaKey = crate::key::ArenaKey<u32, gw32>;
 
 /// see [`GenericSparseArena`]
 ///
-/// [`SlotMap`] is instanciated as `GenericSparseArena<T, (), gw32, u32>` and
-/// has an extra length field for compatiblity with the `SlotMap` crate
+/// [`SlotMap`] is instantiated as `GenericSparseArena<T, (), gw32, u32>` and
+/// has an extra length field for compatibility with the `slotmap` crate
 pub struct SlotMap<T> {
     len: u32,
     arena: GenericSparseArena<T, (), gw32, u32>,

@@ -41,7 +41,7 @@ pub enum TryLoadAllError {
 pub mod load_all;
 
 impl<T: ?Sized + UniqueType> CellOwner for T {}
-/// An extenion trait for [`UniqueType`] that allows accessing [`UtCell`]
+/// An extension trait for [`UniqueType`] that allows accessing [`UtCell`]
 pub trait CellOwner: UniqueType {
     /// Get a reference to a value in a [`UtCell`]
     ///
@@ -182,7 +182,7 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C>
 where
     C::Token: TrivialToken,
 {
-    /// Covnert a mutable reference to a value to a mutable reference to a [`UtCell`]
+    /// Convert a mutable reference to a value to a mutable reference to a [`UtCell`]
     ///
     /// This can only be done when the Token of the [`CellOwner`] is a
     /// 1 aligned ZST.
@@ -290,7 +290,7 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
     /// Get a mutable reference to the underlying value
     #[inline]
     pub fn get_mut(&mut self) -> &mut T {
-        // NOTE: This is safe because all acceesses to the underlying value
+        // NOTE: This is safe because all accesses to the underlying value
         // also bind the reference to self. So if we have unique access to self
         // then we also have unique access to T
         self.value.get_mut()

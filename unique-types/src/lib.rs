@@ -106,7 +106,7 @@ unsafe impl<T: UniqueType + ?Sized> UniqueType for &mut T {
 
 /// A type level boolean representing [`IsUnique`] `true`
 pub struct Yes;
-/// A type level boolean representing [`IsUnique`] `fasle`
+/// A type level boolean representing [`IsUnique`] `false`
 pub struct No;
 
 /// A type-level boolean value
@@ -141,7 +141,7 @@ impl IsUnique for Yes {}
 /// where
 ///     T : ?Sized + MaybeUniqueType +
 ///         // this bound will always be true, but Rust can't know that
-///         // because Rust thinks that there could be new implementions
+///         // because Rust thinks that there could be new implementations
 ///         // of `MaybeUniqueType` in the future.
 ///         MySpecialTraitHelper<T::IsUnique>,
 /// {

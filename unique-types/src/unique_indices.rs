@@ -52,8 +52,8 @@ pub unsafe trait Counter {
 
     /// Reclaims the provided value so that it may be produced again
     ///
-    /// If reclaimation was successful, then the Ok is returned
-    /// If reclaimation was unsuccessful, then the value is returned in the Err variant of the
+    /// If reclamation was successful, then the Ok is returned
+    /// If reclamation was unsuccessful, then the value is returned in the Err variant of the
     /// result.
     ///
     /// # Safety

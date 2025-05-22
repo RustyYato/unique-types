@@ -10,8 +10,8 @@ use crate::{
 
 /// see [`GenericSparseArena`]
 ///
-/// [`Slab`] is instanciated as `GenericSparseArena<T, (), NoGeneration, usize>` and
-/// has an extra length field for compatiblity with the `slab` crate
+/// [`Slab`] is instantiated as `GenericSparseArena<T, (), NoGeneration, usize>` and
+/// has an extra length field for compatibility with the `slab` crate
 pub struct Slab<T> {
     len: usize,
     arena: GenericSparseArena<T, (), NoGeneration, usize>,

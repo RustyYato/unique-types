@@ -13,7 +13,7 @@ pub type ArenaKey = crate::key::ArenaKey<u32, gw32>;
 
 /// see [`GenericDenseArena`]
 ///
-/// [`DenseSlotMap`] is instanciated as `GenericDenseArena<T, (), gw32, u32>`
+/// [`DenseSlotMap`] is instantiated as `GenericDenseArena<T, (), gw32, u32>`
 pub struct DenseSlotMap<T> {
     /// the generic arena this [`DenseSlotMap`] is based on
     pub arena: GenericDenseArena<T, (), gw32, u32>,

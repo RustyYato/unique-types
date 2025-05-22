@@ -97,15 +97,15 @@ impl crate::TrivialToken for LifetimeUtToken<'_> {
 macro_rules! unique_lifetime {
     ($name:ident) => {
         let $name = ();
-        let dropvalue = $crate::lifetime::DropValue::new(&$name);
-        // SAFETY: dropvalue lives until the end of the block, and any subsequent calls
+        let drop_value = $crate::lifetime::DropValue::new(&$name);
+        // SAFETY: drop_value lives until the end of the block, and any subsequent calls
         // to unique_lifetime will live for a strictly shorter lifetime
         // This is because LifetimeUt is invariant in 'brand and DropValue is invariant in 'brand
         // and DropValue implements drop
         // This is because DropValue implements drop, it ensures that the lifetime is "used" at the
         // end of the bloc,
         let $name = unsafe { $crate::lifetime::LifetimeUt::new_unchecked() };
-        dropvalue.brand(&$name);
+        drop_value.brand(&$name);
     };
 }
 

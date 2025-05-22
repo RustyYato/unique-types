@@ -1,5 +1,5 @@
-//! Represents a [`UniqueType`] which tries to aquire a unique value at runtime, and will reclaim
-//! the value it aquired after it is done with it
+//! Represents a [`UniqueType`] which tries to acquire a unique value at runtime, and will reclaim
+//! the value it acquire after it is done with it
 
 use core::{hash::Hash, marker::PhantomData};
 
@@ -83,7 +83,7 @@ impl<C: CounterRef> ReuseRuntimeUt<C> {
 
 // SAFETY: CounterRef and Counter guarantees that ...
 // * C::Value 's PartialEq implementation is correct
-// * That C will not emit duplciate values until they have been reclaimed
+// * That C will not emit duplicate values until they have been reclaimed
 unsafe impl<C: CounterRef> UniqueType for ReuseRuntimeUt<C> {
     type Token = ReuseRuntimeUtToken<C>;
 

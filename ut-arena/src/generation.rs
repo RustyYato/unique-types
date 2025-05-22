@@ -5,7 +5,7 @@
 
 use core::{fmt, hash::Hash};
 
-/// [`Generation`] is used to track the initializatoin state and number of removals of a slot
+/// [`Generation`] is used to track the initialization state and number of removals of a slot
 ///
 /// Here's an example of how the lifetime of a slot can be modeled using [`Generation`]
 ///
@@ -14,10 +14,10 @@ use core::{fmt, hash::Hash};
 ///     * this always succeeds, since you should always be able to fill an empty slot
 /// * when you need to remove a value from a slot, you should call [`Generation::try_empty`]
 ///     * if this succeeds, then the new generation should be used for the slot
-///     * if this fails, then the slot's generation shoud be set to [`Generation::EMPTY`] and
+///     * if this fails, then the slot's generation should be set to [`Generation::EMPTY`] and
 ///       the slot should be discarded, never to be filled again
 /// * when creating a key for a filled slot, you should call [`Generation::to_filled`]
-///     * this creates a more optimizated representation of the generation for keys
+///     * this creates a more optimized representation of the generation for keys
 ///       for example, for `NoGeneration` this is just a `()`
 /// * you can check if a key's generation matches a slot's generation via [`Generation::matches`]
 ///     * and [`Generation::write_mismatch`] writes the error message in case of these don't match
@@ -66,7 +66,7 @@ pub unsafe trait Generation: Copy + Ord + Hash + core::fmt::Debug {
 
     /// Get the next generation
     ///
-    /// May return an error if the genration has been exhausted
+    /// May return an error if the generation has been exhausted
     ///
     /// # Safety
     ///
@@ -330,11 +330,11 @@ macro_rules! prim {
                 // because the caller has to ensure that this is a filled
                 // generation. And we represent filled generations with odd numbers
                 //
-                // If we are implementing a saturaing generation
+                // If we are implementing a saturating generation
                 // this will use checked_add, so on MAX generation
                 // (which is guaranteed to be odd), it will fail to convert to empty
                 //
-                // If we are implementing a wapping genration,
+                // If we are implementing a wapping generation,
                 // this will use wrapping_add, and reuse generations
                 prim_impl!(fn $kind(self, Self))
             }
