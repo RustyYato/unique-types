@@ -56,12 +56,12 @@ impl<T> DenseSlotMap<T> {
     }
 
     /// Insert a new value into a [`DenseSlotMap`]
-    pub fn insert(&mut self, value: T) -> usize {
+    pub fn insert(&mut self, value: T) -> ArenaKey {
         self.arena.insert(value)
     }
 
     /// Insert a new value that depends on the key into a [`DenseSlotMap`]
-    pub fn insert_with(&mut self, value: impl FnOnce(usize) -> T) -> usize {
+    pub fn insert_with(&mut self, value: impl FnOnce(ArenaKey) -> T) -> ArenaKey {
         self.arena.insert_with(value)
     }
 
@@ -75,14 +75,14 @@ impl<T> DenseSlotMap<T> {
     /// Get a reference to the value associated with the key
     ///
     /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
-    pub fn get(&self, key: usize) -> Option<&T> {
+    pub fn get(&self, key: ArenaKey) -> Option<&T> {
         self.arena.get(key)
     }
 
     /// Get a mutable reference to the value associated with the key
     ///
     /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
-    pub fn get_mut(&mut self, key: usize) -> Option<&mut T> {
+    pub fn get_mut(&mut self, key: ArenaKey) -> Option<&mut T> {
         self.arena.get_mut(key)
     }
 
@@ -113,7 +113,7 @@ impl<T> DenseSlotMap<T> {
     /// Try to remove the element associated with the key
     ///
     /// Returns None if the key is invalid or out of bounds
-    pub fn try_remove(&mut self, key: usize) -> Option<T> {
+    pub fn try_remove(&mut self, key: ArenaKey) -> Option<T> {
         self.arena.try_remove(key)
     }
 
@@ -122,7 +122,7 @@ impl<T> DenseSlotMap<T> {
     /// # Panics
     ///
     /// if the key is invalid or out of bounds
-    pub fn remove(&mut self, key: usize) -> T {
+    pub fn remove(&mut self, key: ArenaKey) -> T {
         self.arena.remove(key)
     }
 

@@ -59,13 +59,13 @@ impl<T> SlotMap<T> {
     }
 
     /// Insert a new value into a [`SlotMap`]
-    pub fn insert(&mut self, value: T) -> usize {
+    pub fn insert(&mut self, value: T) -> ArenaKey {
         self.len += 1;
         self.arena.insert(value)
     }
 
     /// Insert a new value that depends on the key into a [`SlotMap`]
-    pub fn insert_with(&mut self, value: impl FnOnce(usize) -> T) -> usize {
+    pub fn insert_with(&mut self, value: impl FnOnce(ArenaKey) -> T) -> ArenaKey {
         self.len += 1;
         self.arena.insert_with(value)
     }
@@ -81,14 +81,14 @@ impl<T> SlotMap<T> {
     /// Get a reference to the value associated with the key
     ///
     /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
-    pub fn get(&self, key: usize) -> Option<&T> {
+    pub fn get(&self, key: ArenaKey) -> Option<&T> {
         self.arena.get(key)
     }
 
     /// Get a mutable reference to the value associated with the key
     ///
     /// Returns None if the key is invalid (out of bounds, or if the slot is empty)
-    pub fn get_mut(&mut self, key: usize) -> Option<&mut T> {
+    pub fn get_mut(&mut self, key: ArenaKey) -> Option<&mut T> {
         self.arena.get_mut(key)
     }
 
@@ -119,7 +119,7 @@ impl<T> SlotMap<T> {
     /// Try to remove the element associated with the key
     ///
     /// Returns None if the key is invalid or out of bounds
-    pub fn try_remove(&mut self, key: usize) -> Option<T> {
+    pub fn try_remove(&mut self, key: ArenaKey) -> Option<T> {
         let value = self.arena.try_remove(key);
         self.len -= value.is_some() as u32;
         value
@@ -130,7 +130,7 @@ impl<T> SlotMap<T> {
     /// # Panics
     ///
     /// if the key is invalid or out of bounds
-    pub fn remove(&mut self, key: usize) -> T {
+    pub fn remove(&mut self, key: ArenaKey) -> T {
         let value = self.arena.remove(key);
         self.len -= 1;
         value
@@ -180,16 +180,16 @@ impl<T> Default for SlotMap<T> {
     }
 }
 
-impl<T> core::ops::Index<usize> for SlotMap<T> {
+impl<T> core::ops::Index<ArenaKey> for SlotMap<T> {
     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: ArenaKey) -> &Self::Output {
         &self.arena[index]
     }
 }
 
-impl<T> core::ops::IndexMut<usize> for SlotMap<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+impl<T> core::ops::IndexMut<ArenaKey> for SlotMap<T> {
+    fn index_mut(&mut self, index: ArenaKey) -> &mut Self::Output {
         &mut self.arena[index]
     }
 }
