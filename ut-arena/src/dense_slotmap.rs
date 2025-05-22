@@ -1,7 +1,7 @@
 //! This is a reimplementation of the `slotmap` crate which is based off of
 //! [`GenericDenseArena`]
 //!
-//! It should retain all the same performance and memory characteristics as `slab`
+//! It should retain all the same performance and memory characteristics as `DenseSlotMap`
 
 use crate::{
     generation::gw32,
@@ -11,16 +11,15 @@ use crate::{
 /// The key type for [`SlotMap`]
 pub type ArenaKey = crate::key::ArenaKey<u32, gw32>;
 
-/// see [`GenericSparseArena`]
+/// see [`GenericDenseArena`]
 ///
-/// [`Slab`] is instanciated as `GenericSparseArena<T, (), NoGeneration, usize>` and
-/// has an extra length field for compatiblity with the `slab` crate
+/// [`DenseSlotMap`] is instanciated as `GenericDenseArena<T, (), gw32, u32>`
 pub struct DenseSlotMap<T> {
     /// the generic arena this [`DenseSlotMap`] is based on
     pub arena: GenericDenseArena<T, (), gw32, u32>,
 }
 
-/// a vacant slot into the [`Slab`], created via [`Slab::vacant_slot`]
+/// a vacant slot into the [`DenseSlotMap`], created via [`DenseSlotMap::vacant_slot`]
 pub struct VacantSlot<'a, T> {
     /// the generic slot that this [`DenseSlotMap`]'s vacant slot is based on
     pub slot: dense::VacantSlot<'a, T, (), gw32, u32>,
@@ -39,29 +38,29 @@ impl<T> VacantSlot<'_, T> {
 }
 
 impl<T> DenseSlotMap<T> {
-    /// Create a new [`Slab`]
+    /// Create a new [`DenseSlotMap`]
     pub const fn new() -> Self {
         Self {
             arena: GenericDenseArena::new(),
         }
     }
 
-    /// Get the number of elements in the [`Slab`]
+    /// Get the number of elements in the [`DenseSlotMap`]
     pub fn len(&self) -> usize {
         self.arena.tracker().len()
     }
 
-    /// Returns true if there are no elements in the [`Slab`]
+    /// Returns true if there are no elements in the [`DenseSlotMap`]
     pub fn is_empty(&self) -> bool {
         self.arena.tracker().is_empty()
     }
 
-    /// Insert a new value into a [`Slab`]
+    /// Insert a new value into a [`DenseSlotMap`]
     pub fn insert(&mut self, value: T) -> usize {
         self.arena.insert(value)
     }
 
-    /// Insert a new value that depends on the key into a [`Slab`]
+    /// Insert a new value that depends on the key into a [`DenseSlotMap`]
     pub fn insert_with(&mut self, value: impl FnOnce(usize) -> T) -> usize {
         self.arena.insert_with(value)
     }
@@ -93,7 +92,7 @@ impl<T> DenseSlotMap<T> {
     ///
     /// The key must be in bounds and the slot must be filled
     ///
-    /// i.e. [`Slab::get`] would have returned [`Some`]
+    /// i.e. [`DenseSlotMap::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked(&self, key: usize) -> &T {
         // SAFETY: the caller ensures that this is correct
         unsafe { self.arena.get_unchecked(key) }
@@ -105,7 +104,7 @@ impl<T> DenseSlotMap<T> {
     ///
     /// The key must be in bounds and the slot must be filled
     ///
-    /// i.e. [`Slab::get`] would have returned [`Some`]
+    /// i.e. [`DenseSlotMap::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked_mut(&mut self, key: usize) -> &mut T {
         // SAFETY: the caller ensures that this is correct
         unsafe { self.arena.get_unchecked_mut(key) }
@@ -138,24 +137,24 @@ impl<T> DenseSlotMap<T> {
         unsafe { self.arena.remove_unchecked(key) }
     }
 
-    /// An unordered list of values in the slab
+    /// An unordered list of values in the DenseSlotMap
     pub fn values(&self) -> &[T] {
         self.arena.values()
     }
 
-    /// An mutable unordered list of values in the slab
+    /// An mutable unordered list of values in the DenseSlotMap
     pub fn values_mut(&mut self) -> &mut [T] {
         self.arena.values_mut()
     }
 
-    /// An iterator over all the keys in the slab
+    /// An iterator over all the keys in the DenseSlotMap
     pub fn keys(&self) -> Keys<'_> {
         Keys {
             keys: self.arena.tracker().keys(),
         }
     }
 
-    /// The mutable slice of values in this [`DenseSlab`]
+    /// The mutable slice of values in this [`DenseDenseSlotMap`]
     /// and the [`GenericDenseTracker`](crate::dense_tracker::GenericDenseTracker)
     /// that this [`DenseSlotMap`] uses
     ///
@@ -191,7 +190,7 @@ impl<T> core::ops::IndexMut<ArenaKey> for DenseSlotMap<T> {
     }
 }
 
-/// An iterator over the keys in a [`DenseSlab`]
+/// An iterator over the keys in a [`DenseDenseSlotMap`]
 pub struct Keys<'a> {
     keys: crate::dense_tracker::Keys<'a, ArenaKey, (), gw32, u32>,
 }

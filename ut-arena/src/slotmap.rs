@@ -1,7 +1,7 @@
 //! This is a reimplementation of the `slotmap` crate which is based off of
 //! [`GenericSparseArena`]
 //!
-//! It should retain all the same performance and memory characteristics as `slab`
+//! It should retain all the same performance and memory characteristics as `SlotMap`
 
 use crate::{
     generation::gw32,
@@ -13,14 +13,14 @@ pub type ArenaKey = crate::key::ArenaKey<u32, gw32>;
 
 /// see [`GenericSparseArena`]
 ///
-/// [`Slab`] is instanciated as `GenericSparseArena<T, (), NoGeneration, usize>` and
-/// has an extra length field for compatiblity with the `slab` crate
+/// [`SlotMap`] is instanciated as `GenericSparseArena<T, (), gw32, u32>` and
+/// has an extra length field for compatiblity with the `SlotMap` crate
 pub struct SlotMap<T> {
     len: u32,
     arena: GenericSparseArena<T, (), gw32, u32>,
 }
 
-/// a vacant slot into the [`Slab`], created via [`Slab::vacant_slot`]
+/// a vacant slot into the [`SlotMap`], created via [`SlotMap::vacant_slot`]
 pub struct VacantSlot<'a, T> {
     len: &'a mut u32,
     slot: sparse::VacantSlot<'a, T, (), gw32, u32>,
@@ -40,7 +40,7 @@ impl<T> VacantSlot<'_, T> {
 }
 
 impl<T> SlotMap<T> {
-    /// Create a new [`Slab`]
+    /// Create a new [`SlotMap`]
     pub const fn new() -> Self {
         Self {
             len: 0,
@@ -48,23 +48,23 @@ impl<T> SlotMap<T> {
         }
     }
 
-    /// Get the number of elements in the [`Slab`]
+    /// Get the number of elements in the [`SlotMap`]
     pub const fn len(&self) -> usize {
         self.len as usize
     }
 
-    /// Returns true if there are no elements in the [`Slab`]
+    /// Returns true if there are no elements in the [`SlotMap`]
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
-    /// Insert a new value into a [`Slab`]
+    /// Insert a new value into a [`SlotMap`]
     pub fn insert(&mut self, value: T) -> usize {
         self.len += 1;
         self.arena.insert(value)
     }
 
-    /// Insert a new value that depends on the key into a [`Slab`]
+    /// Insert a new value that depends on the key into a [`SlotMap`]
     pub fn insert_with(&mut self, value: impl FnOnce(usize) -> T) -> usize {
         self.len += 1;
         self.arena.insert_with(value)
@@ -98,7 +98,7 @@ impl<T> SlotMap<T> {
     ///
     /// The key must be in bounds and the slot must be filled
     ///
-    /// i.e. [`Slab::get`] would have returned [`Some`]
+    /// i.e. [`SlotMap::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked(&self, key: usize) -> &T {
         // SAFETY: the caller ensures that this is correct
         unsafe { self.arena.get_unchecked(key) }
@@ -110,7 +110,7 @@ impl<T> SlotMap<T> {
     ///
     /// The key must be in bounds and the slot must be filled
     ///
-    /// i.e. [`Slab::get`] would have returned [`Some`]
+    /// i.e. [`SlotMap::get`] would have returned [`Some`]
     pub unsafe fn get_unchecked_mut(&mut self, key: usize) -> &mut T {
         // SAFETY: the caller ensures that this is correct
         unsafe { self.arena.get_unchecked_mut(key) }

@@ -8,8 +8,7 @@ use crate::{
 
 /// see [`GenericDenseArena`]
 ///
-/// [`DenseSlab`] is instanciated as `GenericDenseArena<T, (), NoGeneration, usize>` and
-/// has an extra length field for compatiblity with the `slab` crate
+/// [`DenseSlab`] is instanciated as `GenericDenseArena<T, (), NoGeneration, usize>`
 pub struct DenseSlab<T> {
     /// The underlying generic arena type
     pub arena: GenericDenseArena<T, (), NoGeneration, usize>,
