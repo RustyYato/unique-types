@@ -256,7 +256,6 @@ macro_rules! prim {
         $name_filled:ident
 
         $inner:ident
-        $filled_inner:ident
 
         $kind:ident
     ) => {
@@ -270,7 +269,7 @@ macro_rules! prim {
         #[repr(transparent)]
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct $name_filled(core::num::$filled_inner);
+        pub struct $name_filled(core::num::NonZero<$inner>);
 
         const _: () = {
             #[cfg(kani)]
@@ -285,7 +284,7 @@ macro_rules! prim {
         #[cfg(kani)]
         impl kani::Arbitrary for $name_filled {
             fn any() -> Self {
-                let inner = kani::any::<core::num::$filled_inner>();
+                let inner = kani::any::<core::num::NonZero<$inner>>();
                 // all filled generations must be odd, so we can let
                 // kani assume that.
                 kani::assume(inner.get() & 1 == 1);
@@ -361,7 +360,7 @@ macro_rules! prim {
                 debug_assert!(self.is_filled());
                 // SAFETY: all filled generations have the least significant bit set, so mut be
                 // non-zero
-                $name_filled(unsafe { core::num::$filled_inner::new_unchecked(self.0) })
+                $name_filled(unsafe { core::num::NonZero::new_unchecked(self.0) })
             }
 
             #[inline]
@@ -382,7 +381,6 @@ macro_rules! prim_saturating {
         $name_filled:ident
 
         $inner:ident
-        $filled_inner:ident
     ) => {
         prim! {
             $(#[$meta_name])*
@@ -391,7 +389,6 @@ macro_rules! prim_saturating {
             $name_filled
 
             $inner
-            $filled_inner
 
             saturating
         }
@@ -407,7 +404,6 @@ macro_rules! prim_wrapping {
         $name_filled:ident
 
         $inner:ident
-        $filled_inner:ident
     ) => {
         prim! {
             $(#[$meta_name])*
@@ -416,7 +412,6 @@ macro_rules! prim_wrapping {
             $name_filled
 
             $inner
-            $filled_inner
 
             wrapping
         }
@@ -428,21 +423,21 @@ prim_saturating!(
     g8
     /// The key version of [`g8`]
     FilledG8
-    u8 NonZeroU8
+    u8
 );
 prim_saturating!(
     /// A 16-bit saturating generation
     g16
     /// The key version of [`g16`]
     FilledG16
-    u16 NonZeroU16
+    u16
 );
 prim_saturating!(
     /// a 32-bit saturating generation
     g32
     /// The key version of [`g32`]
     FilledG32
-    u32 NonZeroU32
+    u32
 );
 prim_saturating!(
     /// 64-bit saturating generation
@@ -450,7 +445,6 @@ prim_saturating!(
     /// The key version of [`g64`]
     FilledG64
     u64
-    NonZeroU64
 );
 prim_saturating!(
     /// The 128-bit saturating generation
@@ -458,7 +452,6 @@ prim_saturating!(
     /// The key version of [`g128`]
     FilledG128
     u128
-    NonZeroU128
 );
 
 prim_saturating!(
@@ -467,7 +460,6 @@ prim_saturating!(
     /// The key version of [`gsize`]
     FilledGsize
     usize
-    NonZeroUsize
 );
 
 prim_wrapping!(
@@ -475,21 +467,21 @@ prim_wrapping!(
     gw8
     /// The key version of [`gw8`]
     FilledGw8
-    u8 NonZeroU8
+    u8
 );
 prim_wrapping!(
     /// A 16-bit wrapping generation
     gw16
     /// The key version of [`gw16`]
     FilledGw16
-    u16 NonZeroU16
+    u16
 );
 prim_wrapping!(
     /// a 32-bit wrapping generation
     gw32
     /// The key version of [`gw32`]
     FilledGw32
-    u32 NonZeroU32
+    u32
 );
 prim_wrapping!(
     /// 64-bit wrapping generation
@@ -497,7 +489,6 @@ prim_wrapping!(
     /// The key version of [`gw64`]
     FilledGw64
     u64
-    NonZeroU64
 );
 prim_wrapping!(
     /// The 128-bit wrapping generation
@@ -505,7 +496,6 @@ prim_wrapping!(
     /// The key version of [`gw128`]
     FilledGw128
     u128
-    NonZeroU128
 );
 
 prim_wrapping!(
@@ -514,7 +504,6 @@ prim_wrapping!(
     /// The key version of [`gwsize`]
     FilledGwsize
     usize
-    NonZeroUsize
 );
 
 #[cfg(kani)]
