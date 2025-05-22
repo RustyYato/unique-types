@@ -315,9 +315,10 @@ macro_rules! prim {
             unsafe fn fill(self) -> Self {
                 debug_assert!(self.is_empty());
 
-                // we are guaranteed to get an even number for self.0
+                // SAFETY: we are guaranteed to get an even number for self.0
                 // because we represent empty generations as even numbers
-                // so self.0 + 1 == self.0 | 1
+                unsafe { core::hint::assert_unchecked(self.is_empty()) }
+
                 Self(self.0 | 1)
             }
 
@@ -333,7 +334,7 @@ macro_rules! prim {
                 // this will use checked_add, so on MAX generation
                 // (which is guaranteed to be odd), it will fail to convert to empty
                 //
-                // If we are implementing a warpping genration,
+                // If we are implementing a wapping genration,
                 // this will use wrapping_add, and reuse generations
                 prim_impl!(fn $kind(self, Self))
             }
@@ -507,10 +508,7 @@ prim_wrapping!(
 );
 
 #[cfg(kani)]
-fn test_generation<G: Generation>(g: G, filled: G::Filled)
-where
-    G::Filled: kani::Arbitrary,
-{
+fn test_generation<G: Generation>(g: G, filled: G::Filled) {
     assert!(G::EMPTY.is_empty());
     assert!(g.is_empty() != g.is_filled());
 
