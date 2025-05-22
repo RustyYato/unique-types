@@ -221,3 +221,19 @@ impl DoubleEndedIterator for Keys<'_> {
         self.keys.nth_back(n)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic() {
+        let mut s = DenseSlotMap::new();
+        let a = s.insert(10);
+        let b = s.insert(20);
+        assert_eq!(s[a], 10);
+        assert_eq!(s[b], 20);
+        s.remove(a);
+        assert_eq!(s[b], 20);
+    }
+}

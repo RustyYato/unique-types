@@ -190,3 +190,19 @@ impl<T> core::ops::IndexMut<usize> for Slab<T> {
         &mut self.arena[index]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic() {
+        let mut s = Slab::new();
+        s.insert(10);
+        s.insert(20);
+        assert_eq!(s[0], 10);
+        assert_eq!(s[1], 20);
+        s.remove(0);
+        assert_eq!(s[1], 20);
+    }
+}

@@ -193,3 +193,19 @@ impl<T> core::ops::IndexMut<ArenaKey> for SlotMap<T> {
         &mut self.arena[index]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic() {
+        let mut s = SlotMap::new();
+        let a = s.insert(10);
+        let b = s.insert(20);
+        assert_eq!(s[a], 10);
+        assert_eq!(s[b], 20);
+        s.remove(a);
+        assert_eq!(s[b], 20);
+    }
+}
