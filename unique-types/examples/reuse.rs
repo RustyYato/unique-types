@@ -1,11 +1,12 @@
-use unique_types::{reusable_runtime::ReuseRuntimeUt, UniqueType};
-
-unique_types::custom_counter! {
-    struct MyType(core::num::NonZeroU8);
-    with_reuse std::sync::Mutex<Vec<core::num::NonZeroU8>>
-}
-
+#[cfg(feature = "std")]
 fn main() {
+    use unique_types::{reusable_runtime::ReuseRuntimeUt, UniqueType};
+
+    unique_types::custom_counter! {
+        struct MyType(core::num::NonZeroU8);
+        with_reuse std::sync::Mutex<Vec<core::num::NonZeroU8>>
+    }
+
     let b = ReuseRuntimeUt::<MyType>::with_counter();
     let a = ReuseRuntimeUt::<MyType>::with_counter();
 
@@ -24,4 +25,9 @@ fn main() {
     // since a was created last and is dropped, we will reuse it's token
     let d = ReuseRuntimeUt::<MyType>::with_counter();
     assert!(d.owns(&a_token));
+}
+
+#[cfg(not(feature = "std"))]
+fn main() {
+    println!("This example doesn't work unless `unique-types` is compiled with the `std` feature")
 }

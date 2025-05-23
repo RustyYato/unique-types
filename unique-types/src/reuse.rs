@@ -86,6 +86,7 @@ pub unsafe trait Reuse: ReuseMut {
 pub struct BoundedVec<T, const CAPACITY: usize>(alloc::vec::Vec<T>);
 
 /// SAFETY: only yields values that were passed to [`ReuseMut::reclaim_mut`]
+#[cfg(feature = "alloc")]
 unsafe impl<T, const CAPACITY: usize> ReuseMut for BoundedVec<T, CAPACITY> {
     type Value = T;
 
@@ -199,6 +200,7 @@ unsafe impl<T: ReuseMut> Reuse for RefCell<T> {
 }
 
 // SAFETY: pop can only yield values pushed onto the vec
+#[cfg(feature = "alloc")]
 unsafe impl<T> ReuseMut for alloc::vec::Vec<T> {
     type Value = T;
 
