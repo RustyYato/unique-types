@@ -140,7 +140,7 @@ pub struct VacantSlot<
 }
 
 impl<T, G: Generation, I: InternalIndex> Slot<T, G, I> {
-    fn generation(&self) -> G {
+    const fn generation(&self) -> G {
         // SAFETY: all variants of the union have the generation at the start
         unsafe { self.generation }
     }
@@ -247,7 +247,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, I> {
     }
 
     /// Get the owner of this type's keys
-    pub fn owner(&self) -> &O {
+    pub const fn owner(&self) -> &O {
         self.slots.owner()
     }
 }

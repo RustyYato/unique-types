@@ -38,6 +38,7 @@ impl<I, G: Generation> ArenaKey<I, G> {
 
 #[cold]
 #[inline(never)]
+#[allow(clippy::missing_const_for_fn)] // false positive
 fn matches_generation_failed<G: Generation>(generation: G, filled: G::Filled, index: usize) -> ! {
     struct GenerationMatchFailed<G: Generation> {
         generation: G,

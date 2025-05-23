@@ -160,7 +160,7 @@ unsafe impl<T: ?Sized, Ts: CellList> CellList for Cons<&UtCell<T, Ts::Owner>, Ts
 }
 
 impl<T: ?Sized, O: CellOwner + ?Sized, Ts> Cons<&UtCell<T, O>, Ts> {
-    fn is_head_zst_value(&self) -> bool {
+    const fn is_head_zst_value(&self) -> bool {
         core::mem::size_of_val(&self.value.value) == 0
     }
 
@@ -187,7 +187,7 @@ impl<T: ?Sized, O: CellOwner + ?Sized, Ts> Cons<&UtCell<T, O>, Ts> {
         }
     }
 
-    fn head_range(&self) -> (*const u8, usize) {
+    const fn head_range(&self) -> (*const u8, usize) {
         (
             self.value as *const UtCell<T, O> as *const u8,
             core::mem::size_of_val::<UtCell<T, O>>(self.value),

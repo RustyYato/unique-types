@@ -46,12 +46,12 @@ impl<T> DenseSlotMap<T> {
     }
 
     /// Get the number of elements in the [`DenseSlotMap`]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.arena.tracker().len()
     }
 
     /// Returns true if there are no elements in the [`DenseSlotMap`]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.arena.tracker().is_empty()
     }
 

@@ -1,4 +1,4 @@
-//! This is an extenstion of the `slab` crate which is based off of
+//! This is an extension of the `slab` crate which is based off of
 //! [`GenericDenseArena`]
 
 use crate::{
@@ -41,12 +41,12 @@ impl<T> DenseSlab<T> {
     }
 
     /// Get the number of elements in the [`DenseSlab`]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.arena.tracker().len()
     }
 
     /// Returns true if there are no elements in the [`DenseSlab`]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.arena.tracker().is_empty()
     }
 

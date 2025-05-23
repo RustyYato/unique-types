@@ -8,6 +8,7 @@
     clippy::std_instead_of_alloc,
     clippy::alloc_instead_of_core
 )]
+#![deny(clippy::missing_const_for_fn, clippy::missing_const_for_thread_local)]
 
 //! # ut-arena
 //!

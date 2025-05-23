@@ -8,6 +8,7 @@
     clippy::std_instead_of_alloc,
     clippy::alloc_instead_of_core
 )]
+#![deny(clippy::missing_const_for_fn, clippy::missing_const_for_thread_local)]
 
 //! # ut-cell
 //!
@@ -289,7 +290,7 @@ where
 impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
     /// Get a mutable reference to the underlying value
     #[inline]
-    pub fn get_mut(&mut self) -> &mut T {
+    pub const fn get_mut(&mut self) -> &mut T {
         // NOTE: This is safe because all accesses to the underlying value
         // also bind the reference to self. So if we have unique access to self
         // then we also have unique access to T
@@ -298,7 +299,7 @@ impl<T: ?Sized, C: CellOwner + ?Sized> UtCell<T, C> {
 
     /// Get a mutable raw pointer to the underlying value
     #[inline]
-    pub fn as_ptr(&self) -> *mut T {
+    pub const fn as_ptr(&self) -> *mut T {
         self.value.get()
     }
 }

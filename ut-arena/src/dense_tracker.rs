@@ -82,7 +82,7 @@ impl<O, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     }
 
     /// Get the owner of this type's keys
-    pub fn owner(&self) -> &O {
+    pub const fn owner(&self) -> &O {
         self.index.owner()
     }
 }
@@ -94,7 +94,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, O, G, I> {
     }
 
     /// Get the position of the slot into the associated array once it is filled
-    pub fn position(&self) -> usize {
+    pub const fn position(&self) -> usize {
         self.index_rev.len()
     }
 
@@ -123,13 +123,13 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
 
     /// The number of elements in the arena
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.keys.len()
     }
 
     /// Returns true if there are no elements in the arena
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
 

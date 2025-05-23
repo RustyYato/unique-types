@@ -68,7 +68,7 @@ impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I> {
     }
 
     /// Get the owner of this type's keys
-    pub fn owner(&self) -> &O {
+    pub const fn owner(&self) -> &O {
         self.tracker.owner()
     }
 }

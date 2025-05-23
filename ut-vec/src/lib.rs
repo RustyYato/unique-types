@@ -8,6 +8,7 @@
     clippy::std_instead_of_alloc,
     clippy::alloc_instead_of_core
 )]
+#![deny(clippy::missing_const_for_fn, clippy::missing_const_for_thread_local)]
 
 //! # ut-vec
 //!
@@ -169,12 +170,12 @@ impl<T, O: ?Sized> UtVec<T, O> {
     /// # Safety
     ///
     /// You must not reduce the size of the vector
-    pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<T> {
+    pub const unsafe fn as_mut_vec(&mut self) -> &mut Vec<T> {
         &mut self.data
     }
 
     /// see [`Vec::as_slice`]
-    pub fn owner(&self) -> &O {
+    pub const fn owner(&self) -> &O {
         &self.owner
     }
 
@@ -194,17 +195,17 @@ impl<T, O: ?Sized> UtVec<T, O> {
     }
 
     /// see [`Vec::len`]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.len()
     }
 
     /// see [`Vec::is_empty`]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
     /// see [`Vec::capacity`]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.data.capacity()
     }
     /// see [`Vec::reserve`]
