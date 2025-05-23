@@ -109,76 +109,9 @@ unsafe impl<T: UniqueType + ?Sized> UniqueType for &mut T {
     fn owns(&self, token: &Self::Token) -> bool {
         T::owns(self, token)
     }
-}
 
-/// A type level boolean representing [`IsUnique`] `true`
-pub struct Yes;
-/// A type level boolean representing [`IsUnique`] `false`
-pub struct No;
-
-/// A type-level boolean value
-pub trait IsUnique {}
-impl IsUnique for No {}
-impl IsUnique for Yes {}
-
-/// A trait over all [`UniqueType`] and `()` this allows you to optionally
-/// include and specialize behaviors on types which are unique.
-///
-/// Normally you wouldn't be able to write a blanket impl over these types
-///
-/// ```compile_fail,E0119
-/// use unique_types::UniqueType;
-///
-/// pub trait MySpecialTrait {}
-///
-/// impl MySpecialTrait for () {}
-/// impl<T: UniqueType> MySpecialTrait for T {}
-/// ```
-///
-/// But with this trait you can write a blanket impl over all unique types and ()
-/// like so:
-/// ```
-/// use unique_types::{UniqueType, MaybeUniqueType};
-///
-/// pub trait MySpecialTrait {
-///     fn run(&self);
-/// }
-///
-/// impl<T> MySpecialTrait for T
-/// where
-///     T : ?Sized + MaybeUniqueType +
-///         // this bound will always be true, but Rust can't know that
-///         // because Rust thinks that there could be new implementations
-///         // of `MaybeUniqueType` in the future.
-///         MySpecialTraitHelper<T::IsUnique>,
-/// {
-///     fn run(&self) {
-///         self.run_spec()
-///     }
-/// }
-///
-/// trait MySpecialTraitHelper<IsUnique> {
-///     fn run_spec(&self) { /* no real impl just for demo */ }
-/// }
-///
-/// impl MySpecialTraitHelper<unique_types::No> for () {}
-/// impl<T: ?Sized + UniqueType> MySpecialTraitHelper<unique_types::Yes> for T {}
-/// ```
-pub trait MaybeUniqueType: seal::Seal {
-    /// Is the given type unique? [`Yes`] or [`No`]
-    type IsUnique: IsUnique;
-}
-
-impl seal::Seal for () {}
-impl MaybeUniqueType for () {
-    type IsUnique = No;
-}
-
-impl<T: ?Sized + UniqueType> seal::Seal for T {}
-impl<T: ?Sized + UniqueType> MaybeUniqueType for T {
-    type IsUnique = Yes;
-}
-
-mod seal {
-    pub trait Seal {}
+    #[inline]
+    fn provide_unique_token(&self) -> Option<&dyn UniqueToken<Token = Self::Token>> {
+        T::provide_unique_token(self)
+    }
 }
