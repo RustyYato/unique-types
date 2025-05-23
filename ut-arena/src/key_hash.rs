@@ -48,6 +48,6 @@ impl Hasher for ExtractOneHasherU32 {
 
     fn write_u32(&mut self, i: u32) {
         self.value = i;
-        self.count += 1;
+        self.count = (self.count + 1).min(2);
     }
 }
