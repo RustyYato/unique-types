@@ -133,12 +133,12 @@ impl<T> DenseSlab<T> {
     }
 
     /// An unordered list of values in the slab
-    pub fn values(&self) -> &[T] {
+    pub const fn values(&self) -> &[T] {
         self.arena.values()
     }
 
     /// An mutable unordered list of values in the slab
-    pub fn values_mut(&mut self) -> &mut [T] {
+    pub const fn values_mut(&mut self) -> &mut [T] {
         self.arena.values_mut()
     }
 

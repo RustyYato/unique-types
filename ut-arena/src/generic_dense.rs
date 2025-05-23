@@ -219,14 +219,14 @@ where
 
     /// The slice of values in this [`GenericDenseArena`]
     #[inline]
-    pub fn values(&self) -> &[T] {
-        &self.values
+    pub const fn values(&self) -> &[T] {
+        self.values.as_slice()
     }
 
     /// The mutable slice of values in this [`GenericDenseArena`]
     #[inline]
-    pub fn values_mut(&mut self) -> &mut [T] {
-        &mut self.values
+    pub const fn values_mut(&mut self) -> &mut [T] {
+        self.values.as_mut_slice()
     }
 
     /// The [`GenericDenseTracker`] that this [`GenericDenseArena`] uses
@@ -240,8 +240,8 @@ where
     ///
     /// This method is to work around limitations in Rust's borrow checker
     #[inline]
-    pub fn values_mut_and_tracker(&mut self) -> (&mut [T], &GenericDenseTracker<O, G, I>) {
-        (&mut self.values, &self.tracker)
+    pub const fn values_mut_and_tracker(&mut self) -> (&mut [T], &GenericDenseTracker<O, G, I>) {
+        (self.values.as_mut_slice(), &self.tracker)
     }
 }
 

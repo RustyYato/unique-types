@@ -264,7 +264,7 @@ impl<O: ?Sized, G: Generation, I: InternalIndex> GenericDenseTracker<O, G, I> {
     /// and [`Keys::next`] has O(1) performance
     pub fn keys<K: ArenaIndex<O, G>>(&self) -> Keys<'_, K, O, G, I> {
         Keys {
-            index_rev: self.keys.iter(),
+            index_rev: self.keys.as_slice().iter(),
             index_fwd: &self.index,
             _key: PhantomData,
         }
