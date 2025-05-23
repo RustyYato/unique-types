@@ -25,10 +25,13 @@ pub extern crate alloc;
 mod macros;
 
 pub mod lifetime;
+#[cfg(any(feature = "std", feature = "exclusion-set"))]
+pub mod marker_type;
 pub mod reusable_runtime;
-pub mod reuse;
 pub mod runtime;
 pub mod unchecked;
+
+pub mod reuse;
 pub mod unique_indices;
 
 /// A type where all values of the type are distinct from each other.

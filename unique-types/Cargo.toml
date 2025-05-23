@@ -7,7 +7,13 @@ edition = "2021"
 
 default = ["std"]
 
-std = ["alloc"]
+std = ["alloc", "dep:rustc-hash", "exclusion-set?/std"]
 alloc = []
 
-[dependencies]
+[dependencies.rustc-hash]
+version = "2.0"
+optional = true
+
+[dependencies.exclusion-set]
+version = "0.1"
+optional = true
