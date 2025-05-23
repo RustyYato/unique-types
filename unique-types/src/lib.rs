@@ -50,6 +50,8 @@ pub mod unique_indices;
 ///     assert!( !b.owns(&a.token()) );
 /// }
 /// ```
+///
+/// And if the type allows duplicates across threads, then it cannot be `Send` or `Sync`
 pub unsafe trait UniqueType {
     /// A token type which is cheap to share around
     type Token: Copy + Ord;

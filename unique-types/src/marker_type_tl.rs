@@ -6,7 +6,6 @@ use core::{
     any::{Any, TypeId},
     marker::PhantomData,
 };
-use std::sync::MutexGuard;
 
 use crate::UniqueType;
 
@@ -14,16 +13,16 @@ use crate::UniqueType;
 /// it's ownership of `T`. You may have multiple [`TypeTlUt`] values, but they must all
 /// have different types `T`.
 ///
-/// NOTE: this type cannot be send across threads, but it can be shared across threads
+/// NOTE: this type cannot be send/shared across threads, but it can be shared across threads
 pub struct TypeTlUt<T: ?Sized + Any> {
     #[allow(clippy::type_complexity)]
-    ty: PhantomData<(MutexGuard<'static, ()>, fn() -> *mut T)>,
+    ty: PhantomData<*mut T>,
 }
 
 /// The token type for [`TypeTlUt`]
 pub struct TypeTlUtToken<T: ?Sized> {
     #[allow(clippy::type_complexity)]
-    ty: PhantomData<(MutexGuard<'static, ()>, fn() -> *mut T)>,
+    ty: PhantomData<*mut T>,
 }
 
 impl<T: ?Sized> Copy for TypeTlUtToken<T> {}
