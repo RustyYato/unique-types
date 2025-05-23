@@ -68,6 +68,7 @@ impl ReuseRuntimeUt {
 
 impl<C: CounterRef> ReuseRuntimeUt<C> {
     /// Create a new [`ReuseRuntimeUt`] based on the given counter
+    #[track_caller]
     pub fn with_counter() -> Self {
         Self::try_with_counter().expect("Tried to create a new RuntimeUt from an exhausted counter")
     }

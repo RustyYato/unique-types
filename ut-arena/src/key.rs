@@ -149,6 +149,7 @@ unsafe impl<O: ?Sized + UniqueToken, G: Generation> ArenaIndex<O, G> for UtIndex
 unsafe impl<O: ?Sized, G: Generation, _Align: Copy> ArenaIndex<O, G> for ArenaKey<u32, G, _Align> {
     type UtIndex = usize;
 
+    #[track_caller]
     unsafe fn new(index: usize, _owner: &O, generation: G::Filled) -> Self {
         Self {
             index: index
