@@ -229,6 +229,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "init"
+version = "0.1.0"
+source = "git+https://github.com/RustyYato/init.git#cbb3cd94264309f2498981430770719778cde32b"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -726,6 +734,7 @@ name = "ut-arena"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "init",
  "rand",
  "rustc-hash",
  "scopeguard",

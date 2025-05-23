@@ -185,6 +185,16 @@ impl<T, O: ?Sized, G: Generation> VacantSlot<'_, T, O, G> {
         unsafe { K::new(*self.free_list_head, self.owner, generation) }
     }
 
+    fn finish_insert(self) {
+        // SAFETY: At this point, [`GenericSparseArena::vacant_slot`] ensures that this slot
+        // is empty and it's not possible to call [`Self::insert`] multiple times
+        // this slot must be in the empty state
+        self.slot.generation = unsafe { self.slot.generation.fill() };
+
+        // update the `free_list_head` to point to the slot after the next slot
+        *self.free_list_head = self.next_empty_slot;
+    }
+
     /// Insert an element into this slot
     #[inline]
     pub fn insert(self, value: T) {
@@ -193,13 +203,29 @@ impl<T, O: ?Sized, G: Generation> VacantSlot<'_, T, O, G> {
         // are turned on.
         self.slot.value = MaybeUninit::new(value);
 
-        // SAFETY: At this point, [`GenericSparseArena::vacant_slot`] ensures that this slot
-        // is empty and it's not possible to call [`Self::insert`] multiple times
-        // this slot must be in the empty state
-        self.slot.generation = unsafe { self.slot.generation.fill() };
+        self.finish_insert();
+    }
 
-        // update the `free_list_head` to point to the slot after the next slot
-        *self.free_list_head = self.next_empty_slot;
+    /// try to insert an element into the slot by writing directly into it. If initializing
+    /// the value fails, then the vacant slot is returned
+    #[cfg(feature = "init")]
+    pub fn try_init<I: init::Initializer<T>>(self, init: I) -> Result<(), (I::Error, Self)> {
+        // SAFETY: the pointer is non-null, allocated, and safe to write for `T`
+        let value = unsafe { init::Uninit::from_raw(self.slot.value.as_mut_ptr()) };
+        match value.try_init(init) {
+            Ok(x) => {
+                x.take_ownership();
+            }
+            Err(err) => return Err((err, self)),
+        }
+        self.finish_insert();
+        Ok(())
+    }
+
+    /// insert an element into the slot by initializing directly into the slot
+    #[cfg(feature = "init")]
+    pub fn init<I: init::Initializer<T, Error = core::convert::Infallible>>(self, init: I) {
+        let Ok(()) = self.try_init(init);
     }
 }
 

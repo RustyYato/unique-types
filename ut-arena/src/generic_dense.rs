@@ -93,6 +93,40 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
 
         self.slot.insert()
     }
+
+    /// try to insert an element into the slot by writing directly into it. If initializing
+    /// the value fails, then the vacant slot is returned
+    #[cfg(feature = "init")]
+    pub fn try_init<Init>(self, init: Init) -> Result<(), (Init::Error, Self)>
+    where
+        Init: init::Initializer<T>,
+    {
+        let end = self.vec.as_mut_ptr_range().end;
+
+        // SAFETY: [`GenericDenseArena::vacant_slot`] ensures that the vector has
+        // enough capacity for this write, which ensures that the `end` ptr
+        // is allocated and valid to write a `T`
+        let end = unsafe { init::Uninit::from_raw(end) };
+
+        match end.try_init(init) {
+            Ok(x) => x.take_ownership(),
+            Err(err) => return Err((err, self)),
+        }
+
+        let index = self.slot.position();
+        debug_assert_eq!(index, self.vec.len());
+        // SAFETY: we just initialized the position `self.vec.len()`
+        unsafe { self.vec.set_len(self.vec.len() + 1) };
+        self.slot.insert();
+
+        Ok(())
+    }
+
+    /// insert an element into the slot by initializing directly into the slot
+    #[cfg(feature = "init")]
+    pub fn init<Init: init::Initializer<T, Error = core::convert::Infallible>>(self, init: Init) {
+        let Ok(()) = self.try_init(init);
+    }
 }
 
 impl<T, O, G: Generation, I: InternalIndex> GenericDenseArena<T, O, G, I>

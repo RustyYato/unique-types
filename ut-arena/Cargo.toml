@@ -13,6 +13,10 @@ unique-types = ["dep:unique-types", "ut-vec/unique-types"]
 unique-types = { path = "../unique-types", optional = true }
 ut-vec = { path = "../ut-vec" }
 
+[dependencies.init]
+git = "https://github.com/RustyYato/init.git"
+optional = true
+
 [dev-dependencies]
 rand = "0.9"
 scopeguard = "1"

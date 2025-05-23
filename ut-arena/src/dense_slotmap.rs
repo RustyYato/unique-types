@@ -35,6 +35,25 @@ impl<T> VacantSlot<'_, T> {
     pub fn insert(self, value: T) {
         self.slot.insert(value);
     }
+
+    /// try to insert an element into the slot by writing directly into it. If initializing
+    /// the value fails, then the vacant slot is returned
+    #[cfg(feature = "init")]
+    pub fn try_init<Init>(self, init: Init) -> Result<(), (Init::Error, Self)>
+    where
+        Init: init::Initializer<T>,
+    {
+        match self.slot.try_init(init) {
+            Ok(()) => Ok(()),
+            Err((err, slot)) => Err((err, Self { slot })),
+        }
+    }
+
+    /// insert an element into the slot by initializing directly into the slot
+    #[cfg(feature = "init")]
+    pub fn init<Init: init::Initializer<T, Error = core::convert::Infallible>>(self, init: Init) {
+        let Ok(()) = self.try_init(init);
+    }
 }
 
 impl<T> DenseSlotMap<T> {
