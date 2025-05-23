@@ -32,6 +32,13 @@ unsafe impl<C: crate::unique_indices::Counter, R: Reuse<Value = C::Value>>
 
     unsafe fn reclaim(&self, value: Self::Value) -> Result<(), Self::Value> {
         // SAFETY: the caller ensures that this value is legal to pass to reclaim
+        // We first try to let the counter reclaim the value, since that will in general be cheaper
+        // than doing it on the side. It is a single `cmpxchg` to decrement the counter
+        // or setting the counter to false. And doing reclamation via our `reuse` will
+        // in general grab a lock and may allocate.
+        // So if usage patterns are well nested, then we will never need to actually hit
+        // our `reuse`, but it they are not well nested, then we can use our reuse to
+        // ensure that no keys are missed out on
         if let Err(value) = unsafe { self.counter.reclaim(value) } {
             self.reuse.reclaim(value)
         } else {
@@ -72,6 +79,47 @@ pub unsafe trait Reuse: ReuseMut {
 
     /// extract a value from this reuse, this must be one that was passed to reclaim_mut or reclaim
     fn extract(&self) -> Option<Self::Value>;
+}
+
+/// Keeps up to `CAPACITY` elements in a stack
+#[cfg(feature = "alloc")]
+pub struct BoundedVec<T, const CAPACITY: usize>(alloc::vec::Vec<T>);
+
+/// SAFETY: only yields values that were passed to [`ReuseMut::reclaim_mut`]
+unsafe impl<T, const CAPACITY: usize> ReuseMut for BoundedVec<T, CAPACITY> {
+    type Value = T;
+
+    const NEW: Self = Self(alloc::vec::Vec::new());
+
+    fn reclaim_mut(&mut self, value: Self::Value) -> Result<(), Self::Value> {
+        let v = &mut self.0;
+
+        // if we haven't allocated yet, then reserve `CAPACITY` slots
+        if v.capacity() == 0 {
+            #[cold]
+            #[inline(never)]
+            fn alloc<T>(v: &mut alloc::vec::Vec<T>, capacity: usize) {
+                v.reserve_exact(capacity);
+            }
+
+            alloc(v, CAPACITY)
+        }
+
+        // SAFETY: the vector's capacity is set once (just above) and never changed
+        // after it is set. (since `Vec::push` only grows once v.len() == v.capacity())
+        unsafe { core::hint::assert_unchecked(v.capacity() == CAPACITY) };
+
+        if v.len() == v.capacity() {
+            Err(value)
+        } else {
+            v.push(value);
+            Ok(())
+        }
+    }
+
+    fn extract_mut(&mut self) -> Option<Self::Value> {
+        self.0.pop()
+    }
 }
 
 #[cfg(feature = "std")]

@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "cmpxchg",
         "Gsize",
         "Gwsize",
         "hlist",
