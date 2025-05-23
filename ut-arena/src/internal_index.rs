@@ -27,6 +27,12 @@ pub unsafe trait InternalIndex: Copy + core::fmt::Debug + crate::seal::Seal {
     fn to_usize(self) -> usize;
 }
 
+#[cold]
+#[inline(never)]
+fn from_usize_failed() -> ! {
+    panic!("Tried to create an Arena with too many elements")
+}
+
 macro_rules! prim {
     ($ty:ident) => {
         impl crate::seal::Seal for $ty {}
@@ -34,8 +40,10 @@ macro_rules! prim {
         unsafe impl InternalIndex for $ty {
             #[inline]
             fn from_usize(x: usize) -> Self {
-                x.try_into()
-                    .expect("tried to create a Arena with too many elements")
+                match x.try_into() {
+                    Ok(x) => x,
+                    Err(_) => from_usize_failed(),
+                }
             }
 
             unsafe fn from_usize_unchecked(x: usize) -> Self {
