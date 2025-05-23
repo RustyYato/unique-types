@@ -20,7 +20,7 @@ pub struct Slab<T> {
 /// a vacant slot into the [`Slab`], created via [`Slab::vacant_slot`]
 pub struct VacantSlot<'a, T> {
     len: &'a mut usize,
-    slot: sparse::VacantSlot<'a, T, (), NoGeneration, usize>,
+    slot: sparse::VacantSlot<'a, T, (), NoGeneration>,
 }
 
 impl<T> VacantSlot<'_, T> {

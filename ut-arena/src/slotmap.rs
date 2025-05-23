@@ -23,7 +23,7 @@ pub struct SlotMap<T> {
 /// a vacant slot into the [`SlotMap`], created via [`SlotMap::vacant_slot`]
 pub struct VacantSlot<'a, T> {
     len: &'a mut u32,
-    slot: sparse::VacantSlot<'a, T, (), gw32, u32>,
+    slot: sparse::VacantSlot<'a, T, (), gw32>,
 }
 
 impl<T> VacantSlot<'_, T> {

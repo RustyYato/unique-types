@@ -48,7 +48,7 @@ pub struct VacantSlot<
     G: Generation = DefaultGeneration,
     I: InternalIndex = usize,
 > {
-    sparse: sparse::VacantSlot<'a, I, O, G, I>,
+    sparse: sparse::VacantSlot<'a, I, O, G>,
     index_rev: &'a mut Vec<I>,
 }
 

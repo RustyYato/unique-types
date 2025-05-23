@@ -126,16 +126,12 @@ impl<T, G: Generation, I: InternalIndex> Drop for Slot<T, G, I> {
 }
 
 /// a vacant slot into the [`GenericSparseArena`], created via [`GenericSparseArena::vacant_slot`]
-pub struct VacantSlot<
-    'a,
-    T,
-    O: ?Sized = (),
-    G: Generation = DefaultGeneration,
-    I: InternalIndex = usize,
-> {
+pub struct VacantSlot<'a, T, O: ?Sized = (), G: Generation = DefaultGeneration> {
     free_list_head: &'a mut usize,
-    slot: &'a mut Slot<T, G, I>,
+    slot: &'a mut FilledSlot<MaybeUninit<T>, G>,
     owner: &'a O,
+    // we store the `next_empty_slot`  here even though it is the same as `slot.empty.next_empty_slot`
+    // because when inserting into the vacant slot, the first thing we should do is write
     next_empty_slot: usize,
 }
 
@@ -178,7 +174,7 @@ impl<T, G: Generation, I: InternalIndex> Slot<T, G, I> {
     }
 }
 
-impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
+impl<T, O: ?Sized, G: Generation> VacantSlot<'_, T, O, G> {
     /// Get the key that will be associated with this slot once it is filled
     pub fn key<K: ArenaIndex<O, G>>(&self) -> K {
         // SAFETY: the slot is guaranteed to be empty, so we can just fill it and then
@@ -192,27 +188,17 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> VacantSlot<'_, T, O, G, I> {
     /// Insert an element into this slot
     #[inline]
     pub fn insert(self, value: T) {
-        // SAFETY: [`GenericSparseArena::vacant_slot`] ensures that this slot
-        // is empty
-        // and it's not possible to call [`Self::insert`] multiple times
-        // casting FilledSlot<T, G> to FilledSlot<MaybeUninit<T>, G> is legal
-        // because FilledSlot is repr(C), and MaybeUninit<T> has the same repr as T
-        // and because FilledSlot just stores a T, and doesn't do anything fancy with it
-        let slot = unsafe {
-            &mut *(self.slot as *mut Slot<T, G, I> as *mut FilledSlot<MaybeUninit<T>, G>)
-        };
-
         // NOTE: since the first thing we do is write to value, it is very likely
         // that the value will be directly written into slot.value when optimizations
         // are turned on.
-        slot.value = MaybeUninit::new(value);
+        self.slot.value = MaybeUninit::new(value);
 
-        // SAFETY: [`GenericSparseArena::vacant_slot`] ensures that the slot
-        // is empty
-        // and it's not possible to call [`Self::insert`] multiple times
-        unsafe { slot.generation = slot.generation.fill() }
+        // SAFETY: At this point, [`GenericSparseArena::vacant_slot`] ensures that this slot
+        // is empty and it's not possible to call [`Self::insert`] multiple times
+        // this slot must be in the empty state
+        self.slot.generation = unsafe { self.slot.generation.fill() };
 
-        // update the next_empty_slot to point to the slot after the next slot
+        // update the `free_list_head` to point to the slot after the next slot
         *self.free_list_head = self.next_empty_slot;
     }
 }
@@ -266,7 +252,7 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
 
     /// Access a vacant slot in the arena
     #[inline]
-    pub fn vacant_slot(&mut self) -> VacantSlot<'_, T, O, G, I> {
+    pub fn vacant_slot(&mut self) -> VacantSlot<'_, T, O, G> {
         if self.free_list_head == self.slots.len() {
             self.reserve_vacant_slot_slow();
         }
@@ -279,7 +265,14 @@ impl<T, O: ?Sized, G: Generation, I: InternalIndex> GenericSparseArena<T, O, G, 
         VacantSlot {
             // SAFETY: free_list_head always points to an empty slot
             next_empty_slot: unsafe { slot.empty }.next_empty_slot.to_usize(),
-            slot,
+            // SAFETY:
+            // casting FilledSlot<T, G> to FilledSlot<MaybeUninit<T>, G> is legal
+            // because FilledSlot is repr(C), and MaybeUninit<T> has the same repr as T
+            // and because FilledSlot just stores a T, and doesn't do anything fancy with it
+            // (for example, it doesn't have any associated types based on `T`)
+            slot: unsafe {
+                &mut *(slot as *mut Slot<T, G, I> as *mut FilledSlot<MaybeUninit<T>, G>)
+            },
             free_list_head: &mut self.free_list_head,
             owner,
         }
