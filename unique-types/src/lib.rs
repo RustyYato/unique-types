@@ -45,7 +45,7 @@ pub mod unique_indices;
 ///
 /// ```
 /// # use unique_types::UniqueType;
-/// fn no_duplicates<T: UniqueType>(a: T, b: T) {
+/// fn no_duplicates<T: UniqueType>(a: &mut T, b: &mut T) {
 ///     assert!(a.token() != b.token());
 ///     assert!( !a.owns(&b.token()) );
 ///     assert!( !b.owns(&a.token()) );
